@@ -90,6 +90,10 @@ function doPost(e) {
       return json_(manageUsers_(body, who));
     }
     if (body.action === "pull") return json_(pull_(who, auth.admin, body.all));
+    if (body.action === "deleteOwn") {
+      lock.waitLock(25000);
+      return json_(deleteOwn_(body.ids || [], who, auth.admin));
+    }
     if (body.action === "adminSaveOrder" || body.action === "adminDeleteOrder") {
       if (!auth.admin) return json_({ ok: false, error: "只有管理員可以修改別人的叫料單" });
       lock.waitLock(25000);
@@ -354,4 +358,22 @@ function adminOrder_(body, me) {
   o.adminBy = me;
   upsert_(so, sl, o, c ? c.who || me : String(body.owner || me), rev);
   return { ok: true, done: true, rev: rev };
+}
+
+// 叫料人在手機「紀錄」刪除自己的單：試算表也刪掉（只能刪自己的；管理員可刪任何人的）
+function deleteOwn_(ids, who, admin) {
+  var ss = book_();
+  var so = orderSheet_(ss), sl = ensureSheet_(ss, SH_LINE, LINE_HEAD), del = ensureSheet_(ss, SH_DEL, DEL_HEAD);
+  var n = 0;
+  ids.forEach(function (id) {
+    id = String(id || "");
+    if (!id) return;
+    var cur = findOrder_(so, id);
+    if (cur && cur.who && cur.who !== who && !admin) return;
+    var info = {};
+    try { info = cur && cur.data ? JSON.parse(cur.data) : {}; } catch (e) {}
+    del.appendRow([id, cur ? cur.who || who : who, Date.now(), who, info.no || "", info.site || ""]);
+    if (cur) { removeRows_(so, id); removeRows_(sl, id); n++; }
+  });
+  return { ok: true, done: true, n: n };
 }

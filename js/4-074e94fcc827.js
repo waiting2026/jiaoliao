@@ -735,7 +735,7 @@ function renderHist(){
     if(b.dataset.a==="copy"){if(draft().lines.length)saveOrder(true);const n=JSON.parse(JSON.stringify(o));n.id=uid();n.no="";n.exported=false;n.orderDate=today();n.dueDate=addDays(today(),1);n.lines.forEach(l=>l.id=uid());p.draft=n;persist();go("order");toast("已複製成新叫料單")}
     if(b.dataset.a==="xls")exportXlsx(o,true);
     if(b.dataset.a==="pdf")exportPdf(o,true);
-    if(b.dataset.a==="del")confirmDlg("刪除紀錄 "+o.no+"？",()=>{p.orders=p.orders.filter(z=>z!==o);persist();renderHist()});
+    if(b.dataset.a==="del")confirmDlg("刪除紀錄 "+o.no+"？",()=>{p.orders=p.orders.filter(z=>z!==o);persist();renderHist();if(window.jiaoliaoSyncDelete)window.jiaoliaoSyncDelete(o.id)});
   };
 }
 

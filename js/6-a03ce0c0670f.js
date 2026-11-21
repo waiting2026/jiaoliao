@@ -6,6 +6,7 @@
   var CFG_KEY="jiaoliao_sync_cfg";
   var SEEN_KEY="jiaoliao_sync_seen";
   var QUEUE_KEY="jiaoliao_sync_queue";
+  var DEL_KEY="jiaoliao_sync_delq";
   // 部署 Google Apps Script 後，把網頁應用程式網址貼在這裡
   var SYNC_URL="https://script.google.com/macros/s/AKfycbwf1DwO6ARo_ePfa3TT3ZPecLmNnqjksK3sPxcIN-5_Obn3mHSQerYo1rRzQRJyNtM/exec";
 
@@ -18,6 +19,7 @@
 
   var seen=jget(SEEN_KEY,{});
   var queue=jget(QUEUE_KEY,{});
+  var delq=jget(DEL_KEY,{});
   var sending=false,timer=null,lastMsg="";
 
   function pack(p,o){
@@ -46,8 +48,21 @@
 
   function flushSoon(){if(timer)clearTimeout(timer);timer=setTimeout(flush,1200)}
 
+  // 叫料人在「紀錄」按 ✕ 刪除自己的單：同步刪掉試算表那筆（沒網路時先排隊）
+  window.jiaoliaoSyncDelete=function(id){if(!id)return;delq[id]=1;delete queue[id];delete seen[id];jset(DEL_KEY,delq);jset(QUEUE_KEY,queue);jset(SEEN_KEY,seen);flushSoon()};
+  function flushDeletes(){
+    var ids=Object.keys(delq);
+    if(!ids.length)return Promise.resolve();
+    var c=cfg();
+    return fetch(c.url,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({action:"deleteOwn",code:c.code,who:c.who,ids:ids})})
+      .then(function(r){return r.json()})
+      .then(function(j){if(j&&j.ok&&j.done){ids.forEach(function(id){delete delq[id]});jset(DEL_KEY,delq)}})
+      .catch(function(){});
+  }
+
   function flush(){
     if(sending||!ready()||!navigator.onLine)return paint();
+    if(Object.keys(delq).length&&!flush.del){flush.del=true;flushDeletes().then(function(){flush.del=false;flush()});return}
     var ids=Object.keys(queue);
     if(!ids.length){lastMsg="";return paint()}
     sending=true;lastMsg="同步中…";paint();
