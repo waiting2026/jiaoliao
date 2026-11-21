@@ -25,7 +25,10 @@ var SH_LINE = "明細";
 var SH_STAT = "統計";
 var SH_USER = "使用者";
 var USER_HEAD = ["姓名（帳號）", "密碼", "停用", "管理員"];
-var ORDER_HEAD = ["訂單ID", "單號", "工地", "公司", "訂貨日", "交貨日", "聯絡人", "電話", "品項數", "已匯出", "叫料人", "儲存時間", "備註", "月份"];
+var ORDER_HEAD = ["訂單ID", "單號", "工地", "公司", "訂貨日", "交貨日", "聯絡人", "電話", "品項數", "已匯出", "叫料人", "儲存時間", "備註", "月份", "管理員修改", "資料（程式用，請勿修改）"];
+var SH_DEL = "已刪除";
+var DEL_HEAD = ["訂單ID", "叫料人", "刪除時間", "刪除人", "單號", "工地"];
+var COL_REV = 15, COL_DATA = 16;
 var LINE_HEAD = ["訂單ID", "單號", "工地", "訂貨日", "分類", "品名", "尺寸", "規格說明", "單位", "數量", "備註", "叫料人", "月份"];
 
 function setup() {
@@ -86,13 +89,28 @@ function doPost(e) {
       lock.waitLock(25000);
       return json_(manageUsers_(body, who));
     }
+    if (body.action === "pull") return json_(pull_(who, auth.admin, body.all));
+    if (body.action === "adminSaveOrder" || body.action === "adminDeleteOrder") {
+      if (!auth.admin) return json_({ ok: false, error: "只有管理員可以修改別人的叫料單" });
+      lock.waitLock(25000);
+      return json_(adminOrder_(body, who));
+    }
     lock.waitLock(25000);
     var ss = book_();
-    var so = ensureSheet_(ss, SH_ORDER, ORDER_HEAD);
+    var so = orderSheet_(ss);
     var sl = ensureSheet_(ss, SH_LINE, LINE_HEAD);
+    var dead = deletedIds_(ss);
     var orders = body.orders || [];
-    for (var i = 0; i < orders.length; i++) upsert_(so, sl, orders[i], who);
-    return json_({ ok: true, n: orders.length });
+    var skipped = 0;
+    for (var i = 0; i < orders.length; i++) {
+      var o = orders[i];
+      if (!o || !o.id || dead[o.id]) { skipped++; continue; }
+      var cur = findOrder_(so, o.id);
+      // 管理員改過的單：手機上的舊版本不能蓋掉管理員的修改
+      if (cur && cur.rev && Number(o.adminRev || 0) < cur.rev) { skipped++; continue; }
+      upsert_(so, sl, o, cur ? cur.who || who : who, cur ? cur.rev : 0);
+    }
+    return json_({ ok: true, n: orders.length - skipped, skipped: skipped });
   } catch (err) {
     return json_({ ok: false, error: String(err) });
   } finally {
@@ -177,7 +195,7 @@ function checkUser_(name, pw) {
   return { ok: false, error: "姓名或密碼不正確" };
 }
 
-function upsert_(so, sl, o, who) {
+function upsert_(so, sl, o, who, rev) {
   if (!o || !o.id) return;
   var month = String(o.orderDate || "").slice(0, 7);
   removeRows_(so, o.id);
@@ -188,7 +206,10 @@ function upsert_(so, sl, o, who) {
   var r0 = so.getLastRow() + 1;
   so.getRange(r0, 5, 1, 2).setNumberFormat("@");
   so.getRange(r0, 8, 1, 1).setNumberFormat("@");
-  so.getRange(r0, 1, 1, ORDER_HEAD.length).setValues([[o.id, o.no, o.site, o.company, text_(o.orderDate), text_(o.dueDate), o.contact, text_(o.contactTel), lines.length, o.exported ? "是" : "否", who, saved, o.note || "", month]]);
+  so.getRange(r0, COL_REV, 1, 2).setNumberFormat("@");
+  var full = JSON.stringify(o);
+  if (full.length > 45000) full = "";
+  so.getRange(r0, 1, 1, ORDER_HEAD.length).setValues([[o.id, o.no, o.site, o.company, text_(o.orderDate), text_(o.dueDate), o.contact, text_(o.contactTel), lines.length, o.exported ? "是" : "否", who, saved, o.note || "", month, rev ? String(rev) : "", full]]);
   if (lines.length) {
     var rows = lines.map(function (l) {
       return [o.id, o.no, o.site, text_(o.orderDate), l.cat, l.name, text_(l.size), l.spec, l.unit, Number(l.qty) || 0, l.remark, who, month];
@@ -223,7 +244,7 @@ function json_(obj) {
 // 每個工地一個分頁，內容用公式從「明細」自動帶出，只列該工地的叫料品項（新到舊）。
 function siteSheetName_(site) {
   var n = String(site || "未指定工地").replace(/[\[\]*?:\/\\'"]/g, "-").trim().slice(0, 90) || "未指定工地";
-  if ([SH_ORDER, SH_LINE, SH_STAT, SH_USER].indexOf(n) >= 0) n += "（案）";
+  if ([SH_ORDER, SH_LINE, SH_STAT, SH_USER, SH_DEL].indexOf(n) >= 0) n += "（案）";
   return n;
 }
 
@@ -248,4 +269,89 @@ function syncSiteSheets_(ss) {
     var s = String(r[0]).trim();
     if (s && !seen[s]) { seen[s] = true; ensureSiteSheet_(ss, s); }
   });
+}
+
+// ---------- 管理員修改／刪除叫料單，並同步回每支手機的「紀錄」 ----------
+function orderSheet_(ss) {
+  var so = ensureSheet_(ss, SH_ORDER, ORDER_HEAD);
+  if (so.getLastColumn() < ORDER_HEAD.length) {
+    so.getRange(1, 1, 1, ORDER_HEAD.length).setValues([ORDER_HEAD]).setFontWeight("bold").setBackground("#e8f0e4");
+  }
+  return so;
+}
+
+function deletedIds_(ss) {
+  var sh = ss.getSheetByName(SH_DEL), m = {};
+  if (sh && sh.getLastRow() > 1) sh.getRange(2, 1, sh.getLastRow() - 1, 3).getValues().forEach(function (r) { if (r[0]) m[r[0]] = { who: String(r[1]), at: Number(r[2]) || 0 }; });
+  return m;
+}
+
+function findOrder_(so, id) {
+  var last = so.getLastRow();
+  if (last < 2) return null;
+  var ids = so.getRange(2, 1, last - 1, 1).getValues();
+  for (var i = 0; i < ids.length; i++) {
+    if (ids[i][0] === id) {
+      var row = so.getRange(i + 2, 1, 1, ORDER_HEAD.length).getValues()[0];
+      return { row: i + 2, who: String(row[10] || ""), rev: Number(row[COL_REV - 1]) || 0, data: row[COL_DATA - 1] };
+    }
+  }
+  return null;
+}
+
+// 舊資料沒有「資料」欄時，用訂單＋明細組回來
+function rowsToOrders_(ss) {
+  var so = orderSheet_(ss), sl = ss.getSheetByName(SH_LINE);
+  var out = [], byId = {};
+  if (so.getLastRow() < 2) return out;
+  so.getRange(2, 1, so.getLastRow() - 1, ORDER_HEAD.length).getValues().forEach(function (r) {
+    if (!r[0]) return;
+    var d = null;
+    try { d = r[COL_DATA - 1] ? JSON.parse(r[COL_DATA - 1]) : null; } catch (e) { d = null; }
+    var o = d || { id: r[0], no: String(r[1]), site: String(r[2]), company: String(r[3]), orderDate: String(r[4]), dueDate: String(r[5]), contact: String(r[6]), contactTel: String(r[7]), exported: r[9] === "是", note: String(r[12] || ""), lines: null };
+    var item = { id: r[0], who: String(r[10] || ""), rev: Number(r[COL_REV - 1]) || 0, order: o };
+    out.push(item);
+    if (!o.lines) { o.lines = []; byId[r[0]] = o; }
+  });
+  if (sl && sl.getLastRow() > 1 && Object.keys(byId).length) {
+    sl.getRange(2, 1, sl.getLastRow() - 1, LINE_HEAD.length).getValues().forEach(function (r) {
+      var o = byId[r[0]];
+      if (o) o.lines.push({ cat: String(r[4]), name: String(r[5]), size: String(r[6]), spec: String(r[7]), unit: String(r[8]), qty: Number(r[9]) || 0, remark: String(r[10] || "") });
+    });
+  }
+  return out;
+}
+
+// 手機來拿：管理員改過的單、被刪除的單（管理員 all=true 時拿全部）
+function pull_(who, admin, all) {
+  var ss = book_();
+  var list = rowsToOrders_(ss);
+  var dead = deletedIds_(ss), gone = [];
+  Object.keys(dead).forEach(function (id) { if ((admin && all) || dead[id].who === who) gone.push({ id: id, at: dead[id].at }); });
+  if (admin && all) return { ok: true, orders: list, deleted: gone, now: Date.now() };
+  return { ok: true, orders: list.filter(function (x) { return x.who === who && x.rev; }), deleted: gone, now: Date.now() };
+}
+
+function adminOrder_(body, me) {
+  var ss = book_();
+  var so = orderSheet_(ss), sl = ensureSheet_(ss, SH_LINE, LINE_HEAD);
+  if (body.action === "adminDeleteOrder") {
+    var id = String(body.id || "");
+    var cur = findOrder_(so, id);
+    var del = ensureSheet_(ss, SH_DEL, DEL_HEAD);
+    var info = {};
+    try { info = cur && cur.data ? JSON.parse(cur.data) : {}; } catch (e) {}
+    del.appendRow([id, cur ? cur.who : String(body.owner || ""), Date.now(), me, info.no || "", info.site || ""]);
+    removeRows_(so, id);
+    removeRows_(sl, id);
+    return { ok: true, done: true };
+  }
+  var o = body.order;
+  if (!o || !o.id) return { ok: false, error: "資料不完整" };
+  var c = findOrder_(so, o.id);
+  var rev = Date.now();
+  o.adminRev = rev;
+  o.adminBy = me;
+  upsert_(so, sl, o, c ? c.who || me : String(body.owner || me), rev);
+  return { ok: true, done: true, rev: rev };
 }

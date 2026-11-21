@@ -24,11 +24,11 @@
     return{
       id:o.id,no:o.no,site:o.project||p.name,company:o.company||"",
       orderDate:o.orderDate||"",dueDate:o.dueDate||"",contact:o.contact||"",contactTel:o.contactTel||"",
-      exported:!!o.exported,saved:o.saved||0,note:o.note||"",
-      lines:(o.lines||[]).map(function(l){return{cat:l.cat||"",name:l.name||"",size:l.size==null?"":String(l.size),spec:l.spec||"",unit:l.unit||"",qty:+l.qty||0,remark:l.remark||""}})
+      exported:!!o.exported,saved:o.saved||0,note:o.note||"",adminRev:o.adminRev||0,
+      lines:(o.lines||[]).map(function(l){return{id:l.id||"",vk:l.vk||"",ik:l.ik||"",len:l.len||"",cat:l.cat||"",name:l.name||"",size:l.size==null?"":String(l.size),spec:l.spec||"",unit:l.unit||"",qty:+l.qty||0,remark:l.remark||""}})
     };
   }
-  function sig(o){return (o.saved||0)+"|"+(o.exported?1:0)+"|"+(o.lines||[]).length}
+  function sig(o){return (o.saved||0)+"|"+(o.exported?1:0)+"|"+(o.lines||[]).length+"|"+(o.adminRev||0)}
 
   function scan(raw){
     var S;try{S=JSON.parse(raw)}catch(e){return}
@@ -123,11 +123,67 @@
     chip.style.cssText="display:block;margin:8px auto 0;padding:4px 12px;border:1px solid #d1d5db;border-radius:999px;background:#fff;color:#4b5563;font-size:12px";
     chip.onclick=openDlg;
     foot.appendChild(chip);paint();
+    pull();
     var raw=localStorage.getItem(KEY);if(raw&&ready())scan(raw);
     flushSoon();
   }
+  // ---------- 從後台拿回管理員的修改／刪除，更新這支手機的「紀錄」 ----------
+  var pulling=false;
+  function pull(){
+    if(pulling||!ready()||!navigator.onLine)return;
+    pulling=true;var c=cfg();
+    fetch(c.url,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({action:"pull",who:c.who,code:c.code})})
+      .then(function(r){return r.json()})
+      .then(function(j){if(j&&j.ok&&Array.isArray(j.orders))applyPull(j)})
+      .catch(function(){})
+      .then(function(){pulling=false});
+  }
+  function applyPull(j){
+    var raw=localStorage.getItem(KEY);if(!raw)return;
+    var S;try{S=JSON.parse(raw)}catch(e){return}
+    if(!S||!S.projects)return;
+    var dead={};(j.deleted||[]).forEach(function(d){dead[d.id]=1});
+    var srv={};j.orders.forEach(function(x){if(x&&x.rev&&x.order)srv[x.id]=x});
+    var nEdit=0,nDel=0,touched=[];
+    S.projects.forEach(function(p){
+      var keep=[];
+      (p.orders||[]).forEach(function(o){
+        if(dead[o.id]){nDel++;delete queue[o.id];delete seen[o.id];return}
+        var x=srv[o.id];
+        if(x&&x.rev>(o.adminRev||0)){
+          var d=x.order;
+          ["orderDate","dueDate","contact","contactTel","company","note"].forEach(function(k){if(d[k]!=null)o[k]=d[k]});
+          o.lines=(d.lines||[]).map(function(sl){
+            var ll=null;for(var i=0;i<(o.lines||[]).length;i++)if(sl.id&&o.lines[i].id===sl.id){ll=o.lines[i];break}
+            var n=Object.assign({},ll||{list:null,priceNote:"",price:null},sl);
+            if(!n.id)n.id=Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+            if(!n.vk)n.vk="c|"+n.id;if(!n.ik)n.ik="custom";if(!n.len)delete n.len;
+            return n});
+          o.adminRev=x.rev;o.adminBy=d.adminBy||"";
+          nEdit++;touched.push(o);
+          // 這張單如果正開在「叫料單」頁，也換成新內容
+          if(p.draft&&p.draft.id===o.id)p.draft=JSON.parse(JSON.stringify(o));
+        }
+        keep.push(o);
+      });
+      p.orders=keep;
+      // 被刪除的單如果還開在「叫料單」頁，改成新的一張，免得再存回去
+      if(p.draft&&dead[p.draft.id]){p.draft.id=Date.now().toString(36)+Math.random().toString(36).slice(2,7);p.draft.no="";delete p.draft.adminRev}
+    });
+    if(!nEdit&&!nDel)return;
+    rawSet.call(localStorage,KEY,JSON.stringify(S));
+    touched.forEach(function(o){seen[o.id]=sig(o);delete queue[o.id]});
+    jset(SEEN_KEY,seen);jset(QUEUE_KEY,queue);
+    if(window.jiaoliaoAppReload)window.jiaoliaoAppReload();
+    lastMsg="管理員"+(nEdit?"修改了 "+nEdit+" 張":"")+(nEdit&&nDel?"、":"")+(nDel?"刪除了 "+nDel+" 張":"")+"叫料單，紀錄已更新";
+    paint();
+  }
+  window.jiaoliaoSyncPull=pull;
+  setInterval(function(){if(document.visibilityState==="visible")pull()},180000);
+  document.addEventListener("visibilitychange",function(){if(document.visibilityState==="visible")pull()});
+
   // 登入畫面（js/7-login.js）登入成功後呼叫：把這支手機已存的叫料單補送一次
-  window.jiaoliaoSyncRescan=function(){var raw=localStorage.getItem(KEY);if(raw)scan(raw);lastMsg="";flushSoon();paint()};
-  window.addEventListener("online",flushSoon);
+  window.jiaoliaoSyncRescan=function(){pull();var raw=localStorage.getItem(KEY);if(raw)scan(raw);lastMsg="";flushSoon();paint()};
+  window.addEventListener("online",function(){pull();flushSoon()});
   if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",mount);else mount();
 })();

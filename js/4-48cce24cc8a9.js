@@ -1123,6 +1123,8 @@ document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>go(t.dataset.v));
 function renderView(){$("#vMenu").hidden=view!=="menu";$("#vOrder").hidden=view!=="order";$("#vHist").hidden=view!=="hist";$("#vSum").hidden=view!=="sum";
   if(view==="menu")renderMenu();if(view==="order")renderOrder();if(view==="hist")renderHist();if(view==="sum")renderSum();updateCart()}
 function renderAll(){renderProj();renderView()}
+// 雲端同步拿回管理員修改後，重新讀取資料並更新畫面（js/6-sync.js 呼叫）
+window.jiaoliaoAppReload=()=>{const n=load();if(n&&n.projects){S=n;if(!S.projects.find(p=>p.id===S.cur))S.cur=S.projects[0].id;renderAll()}};
 renderAll();
 try{document.getElementById("boot").remove()}catch(e){}
 const hh=()=>document.documentElement.style.setProperty("--hh",document.querySelector(".bar").offsetHeight+"px");hh();addEventListener("resize",hh);
