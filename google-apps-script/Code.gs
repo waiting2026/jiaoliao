@@ -50,6 +50,7 @@ function setup() {
   st.setColumnWidths(9, 1, 220);
   var first = ss.getSheetByName("工作表1") || ss.getSheetByName("Sheet1");
   if (first && ss.getSheets().length > 1) ss.deleteSheet(first);
+  syncSiteSheets_(ss);
   ss.setActiveSheet(st);
 }
 
@@ -129,6 +130,7 @@ function upsert_(so, sl, o, who) {
     });
     sl.getRange(sl.getLastRow() + 1, 1, rows.length, LINE_HEAD.length).setValues(rows);
   }
+  ensureSiteSheet_(so.getParent(), o.site);
 }
 
 function text_(v) {
@@ -147,4 +149,35 @@ function removeRows_(sh, id) {
 
 function json_(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
+}
+
+// ---------- 依工地（案子）分頁 ----------
+// 每個工地一個分頁，內容用公式從「明細」自動帶出，只列該工地的叫料品項（新到舊）。
+function siteSheetName_(site) {
+  var n = String(site || "未指定工地").replace(/[\[\]*?:\/\\'"]/g, "-").trim().slice(0, 90) || "未指定工地";
+  if ([SH_ORDER, SH_LINE, SH_STAT, SH_USER].indexOf(n) >= 0) n += "（案）";
+  return n;
+}
+
+function ensureSiteSheet_(ss, site) {
+  var name = siteSheetName_(site);
+  if (ss.getSheetByName(name)) return;
+  var q = String(site || "未指定工地").replace(/["']/g, "");
+  var sh = ss.insertSheet(name);
+  sh.getRange("A1").setFormula('=IFERROR(QUERY(' + SH_LINE + '!A1:M,"select B, D, E, F, G, H, I, J, K, L where C = \'' + q + '\' order by D desc, B desc",1),"尚無叫料單")');
+  sh.setFrozenRows(1);
+  sh.getRange("1:1").setFontWeight("bold").setBackground("#e8f0e4");
+  sh.setColumnWidths(1, 1, 130);
+  sh.setColumnWidths(4, 1, 220);
+}
+
+// 補建所有已出現過的工地分頁（setup 會順便執行）
+function syncSiteSheets_(ss) {
+  var so = ss.getSheetByName(SH_ORDER);
+  if (!so || so.getLastRow() < 2) return;
+  var seen = {};
+  so.getRange(2, 3, so.getLastRow() - 1, 1).getValues().forEach(function (r) {
+    var s = String(r[0]).trim();
+    if (s && !seen[s]) { seen[s] = true; ensureSiteSheet_(ss, s); }
+  });
 }
