@@ -123,12 +123,19 @@ function upsert_(so, sl, o, who) {
   removeRows_(sl, o.id);
   var lines = o.lines || [];
   var saved = o.saved ? Utilities.formatDate(new Date(o.saved), "Asia/Taipei", "yyyy-MM-dd HH:mm") : "";
-  so.appendRow([o.id, o.no, o.site, o.company, text_(o.orderDate), text_(o.dueDate), o.contact, text_(o.contactTel), lines.length, o.exported ? "是" : "否", who, saved, o.note || "", month]);
+  // 先把日期、電話欄設成純文字再寫入，避免 0912… 變成 912…、日期被轉換
+  var r0 = so.getLastRow() + 1;
+  so.getRange(r0, 5, 1, 2).setNumberFormat("@");
+  so.getRange(r0, 8, 1, 1).setNumberFormat("@");
+  so.getRange(r0, 1, 1, ORDER_HEAD.length).setValues([[o.id, o.no, o.site, o.company, text_(o.orderDate), text_(o.dueDate), o.contact, text_(o.contactTel), lines.length, o.exported ? "是" : "否", who, saved, o.note || "", month]]);
   if (lines.length) {
     var rows = lines.map(function (l) {
       return [o.id, o.no, o.site, text_(o.orderDate), l.cat, l.name, text_(l.size), l.spec, l.unit, Number(l.qty) || 0, l.remark, who, month];
     });
-    sl.getRange(sl.getLastRow() + 1, 1, rows.length, LINE_HEAD.length).setValues(rows);
+    var r1 = sl.getLastRow() + 1;
+    sl.getRange(r1, 4, rows.length, 1).setNumberFormat("@");
+    sl.getRange(r1, 7, rows.length, 1).setNumberFormat("@");
+    sl.getRange(r1, 1, rows.length, LINE_HEAD.length).setValues(rows);
   }
   ensureSiteSheet_(so.getParent(), o.site);
 }
