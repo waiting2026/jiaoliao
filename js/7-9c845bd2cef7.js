@@ -89,6 +89,7 @@
   }
   function hideGate(){
     if(gate){gate.remove();gate=null}
+    document.documentElement.classList.remove("lg-pre");
     document.body.classList.remove("lg-locked");
     paintMenu();
   }
