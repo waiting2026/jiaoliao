@@ -25,16 +25,17 @@ var SH_LINE = "明細";
 var SH_STAT = "統計";
 var SH_USER = "使用者";
 var USER_HEAD = ["姓名（帳號）", "密碼", "停用", "管理員"];
-var ORDER_HEAD = ["訂單ID", "單號", "工地", "公司", "訂貨日", "交貨日", "聯絡人", "電話", "品項數", "已匯出", "叫料人", "儲存時間", "備註", "月份", "管理員修改", "資料（程式用，請勿修改）"];
+var ORDER_HEAD = ["訂單ID", "單號", "工地", "公司", "訂貨日", "交貨日", "聯絡人", "電話", "品項數", "已匯出", "叫料人", "儲存時間", "備註", "月份", "管理員修改", "資料（程式用，請勿修改）", "刪除（打勾）"];
 var SH_DEL = "已刪除";
 var DEL_HEAD = ["訂單ID", "叫料人", "刪除時間", "刪除人", "單號", "工地"];
 var COL_REV = 15, COL_DATA = 16;
-var LINE_HEAD = ["訂單ID", "單號", "工地", "訂貨日", "分類", "品名", "尺寸", "規格說明", "單位", "數量", "備註", "叫料人", "月份"];
+var LINE_HEAD = ["訂單ID", "單號", "工地", "訂貨日", "分類", "品名", "尺寸", "規格說明", "單位", "數量", "備註", "叫料人", "月份", "刪除（打勾）", "明細ID（程式用）"];
+var COL_ODEL = 17, LCOL_DEL = 14, LCOL_ID = 15;
 
 function setup() {
   var ss = book_();
   ensureSheet_(ss, SH_ORDER, ORDER_HEAD);
-  ensureSheet_(ss, SH_LINE, LINE_HEAD);
+  lineSheet_(ss);
   var us = ensureSheet_(ss, SH_USER, USER_HEAD);
   if (us.getLastRow() < 2 && SEED_USERS.length) {
     us.getRange(2, 1, SEED_USERS.length, 2).setValues(SEED_USERS);
@@ -102,7 +103,7 @@ function doPost(e) {
     lock.waitLock(25000);
     var ss = book_();
     var so = orderSheet_(ss);
-    var sl = ensureSheet_(ss, SH_LINE, LINE_HEAD);
+    var sl = lineSheet_(ss);
     var dead = deletedIds_(ss);
     var orders = body.orders || [];
     var skipped = 0;
@@ -213,15 +214,17 @@ function upsert_(so, sl, o, who, rev) {
   so.getRange(r0, COL_REV, 1, 2).setNumberFormat("@");
   var full = JSON.stringify(o);
   if (full.length > 45000) full = "";
-  so.getRange(r0, 1, 1, ORDER_HEAD.length).setValues([[o.id, o.no, o.site, o.company, text_(o.orderDate), text_(o.dueDate), o.contact, text_(o.contactTel), lines.length, o.exported ? "是" : "否", who, saved, o.note || "", month, rev ? String(rev) : "", full]]);
+  so.getRange(r0, 1, 1, ORDER_HEAD.length).setValues([[o.id, o.no, o.site, o.company, text_(o.orderDate), text_(o.dueDate), o.contact, text_(o.contactTel), lines.length, o.exported ? "是" : "否", who, saved, o.note || "", month, rev ? String(rev) : "", full, false]]);
+  so.getRange(r0, COL_ODEL).insertCheckboxes();
   if (lines.length) {
     var rows = lines.map(function (l) {
-      return [o.id, o.no, o.site, text_(o.orderDate), l.cat, l.name, text_(l.size), l.spec, l.unit, Number(l.qty) || 0, l.remark, who, month];
+      return [o.id, o.no, o.site, text_(o.orderDate), l.cat, l.name, text_(l.size), l.spec, l.unit, Number(l.qty) || 0, l.remark, who, month, false, l.id || ""];
     });
     var r1 = sl.getLastRow() + 1;
     sl.getRange(r1, 4, rows.length, 1).setNumberFormat("@");
     sl.getRange(r1, 7, rows.length, 1).setNumberFormat("@");
     sl.getRange(r1, 1, rows.length, LINE_HEAD.length).setValues(rows);
+    sl.getRange(r1, LCOL_DEL, rows.length, 1).insertCheckboxes();
   }
   ensureSiteSheet_(so.getParent(), o.site);
 }
@@ -276,6 +279,14 @@ function syncSiteSheets_(ss) {
 }
 
 // ---------- 管理員修改／刪除叫料單，並同步回每支手機的「紀錄」 ----------
+function lineSheet_(ss) {
+  var sl = ensureSheet_(ss, SH_LINE, LINE_HEAD);
+  if (sl.getLastColumn() < LINE_HEAD.length) {
+    sl.getRange(1, 1, 1, LINE_HEAD.length).setValues([LINE_HEAD]).setFontWeight("bold").setBackground("#e8f0e4");
+  }
+  return sl;
+}
+
 function orderSheet_(ss) {
   var so = ensureSheet_(ss, SH_ORDER, ORDER_HEAD);
   if (so.getLastColumn() < ORDER_HEAD.length) {
@@ -338,7 +349,7 @@ function pull_(who, admin, all) {
 
 function adminOrder_(body, me) {
   var ss = book_();
-  var so = orderSheet_(ss), sl = ensureSheet_(ss, SH_LINE, LINE_HEAD);
+  var so = orderSheet_(ss), sl = lineSheet_(ss);
   if (body.action === "adminDeleteOrder") {
     var id = String(body.id || "");
     var cur = findOrder_(so, id);
@@ -363,7 +374,7 @@ function adminOrder_(body, me) {
 // 叫料人在手機「紀錄」刪除自己的單：試算表也刪掉（只能刪自己的；管理員可刪任何人的）
 function deleteOwn_(ids, who, admin) {
   var ss = book_();
-  var so = orderSheet_(ss), sl = ensureSheet_(ss, SH_LINE, LINE_HEAD), del = ensureSheet_(ss, SH_DEL, DEL_HEAD);
+  var so = orderSheet_(ss), sl = lineSheet_(ss), del = ensureSheet_(ss, SH_DEL, DEL_HEAD);
   var n = 0;
   ids.forEach(function (id) {
     id = String(id || "");
@@ -376,4 +387,107 @@ function deleteOwn_(ids, who, admin) {
     if (cur) { removeRows_(so, id); removeRows_(sl, id); n++; }
   });
   return { ok: true, done: true, n: n };
+}
+
+// ---------- 直接在試算表修改／刪除，也同步回手機 ----------
+// 「訂單」：改訂貨日、交貨日、聯絡人、電話、備註，或在「刪除（打勾）」打勾刪整張。
+// 「明細」：改品名、尺寸、規格、單位、數量、備註，或打勾刪那一項；
+//          在最下面新增一列，填「單號」「品名」「數量」就會加進那張單。
+// （工地分頁是公式自動產生的，請到「訂單」「明細」改。）
+// 第一次要在編輯器執行一次 installEditTrigger 並授權。
+function installEditTrigger() {
+  var ss = book_();
+  ScriptApp.getProjectTriggers().forEach(function (t) { if (t.getHandlerFunction() === "onSheetEdit") ScriptApp.deleteTrigger(t); });
+  ScriptApp.newTrigger("onSheetEdit").forSpreadsheet(ss).onEdit().create();
+  var so = orderSheet_(ss), sl = lineSheet_(ss);
+  if (so.getLastRow() > 1) so.getRange(2, COL_ODEL, so.getLastRow() - 1, 1).insertCheckboxes();
+  if (sl.getLastRow() > 1) sl.getRange(2, LCOL_DEL, sl.getLastRow() - 1, 1).insertCheckboxes();
+}
+
+var ORDER_EDIT_COLS = { 5: "orderDate", 6: "dueDate", 7: "contact", 8: "contactTel", 13: "note" };
+var LINE_EDIT_COLS = { 6: "name", 7: "size", 8: "spec", 9: "unit", 10: "qty", 11: "remark" };
+
+function onSheetEdit(e) {
+  if (!e || !e.range) return;
+  var sh = e.range.getSheet(), name = sh.getName();
+  if (name !== SH_ORDER && name !== SH_LINE) return;
+  var row = e.range.getRow(), col = e.range.getColumn();
+  if (row < 2 || e.range.getNumRows() > 1 || e.range.getNumColumns() > 1) return;
+  var lock = LockService.getScriptLock();
+  lock.waitLock(25000);
+  try {
+    var ss = sh.getParent();
+    var so = orderSheet_(ss), sl = lineSheet_(ss);
+    if (name === SH_ORDER) {
+      var ov = so.getRange(row, 1, 1, ORDER_HEAD.length).getValues()[0];
+      var oid = ov[0];
+      if (!oid) return;
+      if (col === COL_ODEL) {
+        if (ov[COL_ODEL - 1] !== true) return;
+        var info = {};
+        try { info = ov[COL_DATA - 1] ? JSON.parse(ov[COL_DATA - 1]) : {}; } catch (x) {}
+        ensureSheet_(ss, SH_DEL, DEL_HEAD).appendRow([oid, String(ov[10] || ""), Date.now(), "試算表", info.no || ov[1], info.site || ov[2]]);
+        removeRows_(so, oid);
+        removeRows_(sl, oid);
+        return;
+      }
+      var f = ORDER_EDIT_COLS[col];
+      if (!f) return;
+      var o = orderData_(ss, oid);
+      if (!o) return;
+      o[f] = text_(e.range.getDisplayValue());
+      saveFromSheet_(so, sl, o, String(ov[10] || ""));
+      return;
+    }
+    var lv = sl.getRange(row, 1, 1, LINE_HEAD.length).getValues()[0];
+    var id = lv[0];
+    if (!id) { addLineFromSheet_(ss, so, sl, row, lv); return; }
+    var lf = LINE_EDIT_COLS[col];
+    if (col !== LCOL_DEL && !lf) return;
+    if (col === LCOL_DEL && lv[LCOL_DEL - 1] !== true) return;
+    var od = orderData_(ss, id);
+    if (!od) return;
+    // 找出這一列是那張單的第幾項：先用明細ID，沒有就用順序
+    var idx = -1, lid = String(lv[LCOL_ID - 1] || "");
+    if (lid) for (var i = 0; i < od.lines.length; i++) if (od.lines[i].id === lid) { idx = i; break; }
+    if (idx < 0) {
+      var ids = sl.getRange(2, 1, row - 1, 1).getValues(), k = 0;
+      for (var r = 0; r < ids.length - 1; r++) if (ids[r][0] === id) k++;
+      idx = k;
+    }
+    if (idx < 0 || idx >= od.lines.length) return;
+    if (col === LCOL_DEL) od.lines.splice(idx, 1);
+    else od.lines[idx][lf] = lf === "qty" ? (Number(e.range.getValue()) || 0) : text_(e.range.getDisplayValue());
+    saveFromSheet_(so, sl, od, String(lv[11] || ""));
+  } finally {
+    try { lock.releaseLock(); } catch (x) {}
+  }
+}
+
+// 在「明細」最下面新增一列：填「單號」「品名」「數量」（可再填尺寸、單位、備註），三個都填好就會加進那張叫料單
+function addLineFromSheet_(ss, so, sl, row, lv) {
+  var no = String(lv[1] || "").trim(), nm = String(lv[5] || "").trim(), q = Number(lv[9]) || 0;
+  if (!no || !nm || q <= 0) return;
+  var list = rowsToOrders_(ss), hit = null;
+  for (var i = 0; i < list.length; i++) if (String(list[i].order.no || "").trim() === no) { hit = list[i]; break; }
+  if (!hit) { sl.getRange(row, 11).setValue("找不到單號 " + no + "，請確認"); return; }
+  var o = hit.order; o.lines = o.lines || [];
+  var lid = "s" + Date.now().toString(36);
+  o.lines.push({ id: lid, vk: "c|" + lid, ik: "custom", cat: String(lv[4] || "自訂"), name: nm, size: text_(lv[6]), spec: text_(lv[7]), unit: String(lv[8] || "個"), qty: q, remark: text_(lv[10]) });
+  sl.deleteRow(row);
+  saveFromSheet_(so, sl, o, hit.who);
+}
+
+function orderData_(ss, id) {
+  var list = rowsToOrders_(ss);
+  for (var i = 0; i < list.length; i++) if (list[i].id === id) { var o = list[i].order; o.lines = o.lines || []; return o; }
+  return null;
+}
+
+function saveFromSheet_(so, sl, o, who) {
+  var c = findOrder_(so, o.id);
+  var rev = Date.now();
+  o.adminRev = rev;
+  o.adminBy = "試算表";
+  upsert_(so, sl, o, c ? c.who || who : who, rev);
 }
