@@ -8,11 +8,17 @@
   var SYNC_URL="https://script.google.com/macros/s/AKfycbwf1DwO6ARo_ePfa3TT3ZPecLmNnqjksK3sPxcIN-5_Obn3mHSQerYo1rRzQRJyNtM/exec";
   // 管理員（可以新增、刪除使用人）。後台 Code.gs 也有同一份名單，以後台為準。
   var ADMINS=["李羿萱"];
+  // 超過這段時間沒有操作就自動登出（5 分鐘）
+  var IDLE_MS=5*60*1000;
+  var ACT_KEY="jiaoliao_last_act";
 
   function jget(k,d){try{var s=localStorage.getItem(k);return s?JSON.parse(s):d}catch(e){return d}}
   function jset(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
   function cfg(){var c=jget(CFG_KEY,{});c.url=c.url||SYNC_URL;return c}
   function loggedIn(){var c=cfg();return !!(c.who&&c.code)}
+  function unlocked(){return loggedIn()&&!cfg().locked}
+  function lastAct(){return +localStorage.getItem(ACT_KEY)||0}
+  function touch(){try{localStorage.setItem(ACT_KEY,String(Date.now()))}catch(e){}}
   function isAdmin(){var c=cfg();return c.role==="admin"||ADMINS.indexOf(c.who)>=0}
   function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(ch){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[ch]})}
 
@@ -75,11 +81,14 @@
       ev.preventDefault();
       var w=who.value.trim(),p=pw.value.trim();
       if(!w||!p){m.textContent="請輸入使用人和密碼";return}
-      if(!navigator.onLine){m.textContent="目前沒有網路，第一次登入要連上網路";return}
+      var old=cfg();
+      if(old.who===w&&old.code===p&&(!navigator.onLine)){old.locked=false;jset(CFG_KEY,old);touch();hideGate();return}
+      if(!navigator.onLine){m.textContent=old.who===w&&old.code?"密碼不正確":"目前沒有網路，第一次登入要連上網路";return}
       go.disabled=true;go.textContent="登入中…";m.textContent="";
       api({action:"login",who:w,code:p}).then(function(j){
         if(!j||!j.ok){m.textContent=(j&&j.error)||"使用人或密碼不正確";return}
         jset(CFG_KEY,{who:w,code:p,url:SYNC_URL,role:j.role||(ADMINS.indexOf(w)>=0?"admin":"user"),at:Date.now()});
+        touch();
         hideGate();
         if(window.jiaoliaoSyncRescan)window.jiaoliaoSyncRescan();
       }).catch(function(){m.textContent="連不上網路，請稍後再試"})
@@ -93,6 +102,21 @@
     document.body.classList.remove("lg-locked");
     paintMenu();
   }
+
+  // 閒置自動登出：畫面鎖住，要重新輸入密碼；資料和雲端同步都不受影響，沒網路時也能用原密碼解鎖
+  function idleLock(){
+    if(!unlocked())return;
+    var c=cfg();c.locked=true;jset(CFG_KEY,c);
+    var dlg=document.querySelectorAll("dialog[open]");for(var i=0;i<dlg.length;i++){try{dlg[i].close()}catch(e){}}
+    showGate("超過 5 分鐘沒有使用，已自動登出，請重新登入");
+  }
+  function idleCheck(){if(unlocked()&&Date.now()-lastAct()>IDLE_MS)idleLock()}
+  var lastTouch=0;
+  function onAct(){if(!unlocked())return;var n=Date.now();if(n-lastTouch>5000){lastTouch=n;touch()}}
+  ["pointerdown","keydown","touchstart","wheel","input"].forEach(function(t){document.addEventListener(t,onAct,{capture:true,passive:true})});
+  setInterval(idleCheck,10000);
+  document.addEventListener("visibilitychange",function(){if(document.visibilityState==="visible")idleCheck()});
+  window.addEventListener("pageshow",idleCheck);
 
   function logout(){
     var c=cfg();
@@ -186,8 +210,9 @@
   }
 
   function start(){
-    if(loggedIn()){paintMenu();recheck()}
-    else showGate("");
+    if(unlocked()&&Date.now()-lastAct()>IDLE_MS){idleLock();return}
+    if(unlocked()){touch();paintMenu();recheck()}
+    else{showGate(loggedIn()?"已自動登出，請重新登入":"");if(loggedIn())recheck()}
   }
   window.addEventListener("online",recheck);
   if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",start);else start();

@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#2f5a1c">
 <title>工程叫料小幫手</title>
-<style>html.lg-pre body>*:not(#loginGate){visibility:hidden}</style><script>try{var c=JSON.parse(localStorage.getItem("jiaoliao_sync_cfg")||"{}");if(!(c.who&&c.code))document.documentElement.className+=" lg-pre"}catch(e){document.documentElement.className+=" lg-pre"}</script>
+<style>html.lg-pre body>*:not(#loginGate){visibility:hidden}</style><script>try{var c=JSON.parse(localStorage.getItem("jiaoliao_sync_cfg")||"{}");if(!(c.who&&c.code)||c.locked||Date.now()-(+localStorage.getItem("jiaoliao_last_act")||0)>300000)document.documentElement.className+=" lg-pre"}catch(e){document.documentElement.className+=" lg-pre"}</script>
 <style>
 :root{--g:#2f5a1c;--g2:#4d7c2a;--gl:#eef6e4;--gb:#cfe3b8;--p:#7c3aed;--p2:#6d28d9;--pl:#f3edff;--bg:#f3f4f8;--card:#fff;--line:#e5e7eb;--tx:#1f2937;--mu:#6b7280;--warn:#d97706;--red:#dc2626}
 *{box-sizing:border-box}
@@ -293,7 +293,7 @@ button:focus-visible,summary:focus-visible,input:focus-visible,select:focus-visi
 <script src="js/4-4845f8fd8f39.js"></script>
 <script src="js/5-206f23bb2e52.js"></script>
 <script src="js/6-0625fbcf8d8b.js"></script>
-<script src="js/7-9c845bd2cef7.js"></script>
+<script src="js/7-39069e34a604.js"></script>
 <script>
 (function(){
   var el=document.getElementById("offState");
