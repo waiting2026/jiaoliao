@@ -3,12 +3,15 @@
  *
  * 用法：在要當後台的 Google 試算表選「擴充功能 → Apps Script」，貼上這份程式碼，
  * 1) 執行一次 setup（建立「訂單」「明細」「統計」「使用者」分頁），
- * 2) 到「使用者」分頁填入帳號：A 欄＝姓名（登入帳號）、B 欄＝預設電話號碼（登入密碼）、C 欄填「停用」可暫停某人，
+ * 2) 到「使用者」分頁填入帳號：A 欄＝姓名（登入帳號）、B 欄＝密碼（可以是電話號碼或任何文字）、C 欄填「停用」可暫停某人、D 欄填「管理員」可管理使用人，
+ *    （管理員也可以直接在網站齒輪 →「使用者管理」新增、刪除、改密碼）
  * 3) 「部署 → 新增部署作業 → 網頁應用程式」：執行身分選「我」，誰可以存取選「所有人」，
  * 4) 把部署後的網址貼到 js/6-sync.js 的 SYNC_URL。
  */
 // 初次建立「使用者」分頁時帶入的名單，格式：[["姓名","電話"], ...]；之後直接在試算表裡改即可。
 var SEED_USERS = [];
+// 管理員名單（可在網站上新增、刪除使用人）；試算表 D 欄填「管理員」也算。
+var ADMINS = ["李羿萱"];
 // 若程式是從試算表「擴充功能 → Apps Script」開啟，這行留空即可；
 // 若是獨立的 Apps Script 專案，填入試算表網址中 /d/ 與 /edit 之間那一串 ID。
 var SHEET_ID = "";
@@ -21,7 +24,7 @@ var SH_ORDER = "訂單";
 var SH_LINE = "明細";
 var SH_STAT = "統計";
 var SH_USER = "使用者";
-var USER_HEAD = ["姓名（帳號）", "預設電話（密碼）", "停用"];
+var USER_HEAD = ["姓名（帳號）", "密碼", "停用", "管理員"];
 var ORDER_HEAD = ["訂單ID", "單號", "工地", "公司", "訂貨日", "交貨日", "聯絡人", "電話", "品項數", "已匯出", "叫料人", "儲存時間", "備註", "月份"];
 var LINE_HEAD = ["訂單ID", "單號", "工地", "訂貨日", "分類", "品名", "尺寸", "規格說明", "單位", "數量", "備註", "叫料人", "月份"];
 
@@ -77,7 +80,12 @@ function doPost(e) {
     var who = String((body && body.who) || "").trim();
     var auth = checkUser_(who, (body && body.code) || "");
     if (!auth.ok) return json_({ ok: false, error: auth.error });
-    if (body.action === "login") return json_({ ok: true, name: who });
+    if (body.action === "login") return json_({ ok: true, name: who, role: auth.admin ? "admin" : "user" });
+    if (body.action === "users" || body.action === "saveUser" || body.action === "deleteUser") {
+      if (!auth.admin) return json_({ ok: false, error: "只有管理員可以管理使用人" });
+      lock.waitLock(25000);
+      return json_(manageUsers_(body, who));
+    }
     lock.waitLock(25000);
     var ss = book_();
     var so = ensureSheet_(ss, SH_ORDER, ORDER_HEAD);
@@ -96,19 +104,72 @@ function digits_(v) {
   return String(v == null ? "" : v).replace(/\D/g, "");
 }
 
-// 帳號＝姓名，密碼＝預設電話號碼（不分有無破折號）；連續輸入錯誤太多次會暫時鎖住
+// 密碼相同才算對；若試算表裡的密碼是電話號碼，有沒有打破折號都可以
+function samePw_(stored, pw) {
+  var a = String(stored == null ? "" : stored).trim(), b = String(pw == null ? "" : pw).trim();
+  if (!a || !b) return false;
+  if (a === b) return true;
+  return /^[\d\s\-()+]+$/.test(a) && /^[\d\s\-()+]+$/.test(b) && digits_(a) === digits_(b);
+}
+
+function isAdmin_(name, flag) {
+  return ADMINS.indexOf(name) >= 0 || String(flag || "").trim() !== "";
+}
+
+function userSheet_() {
+  var sh = ensureSheet_(book_(), SH_USER, USER_HEAD);
+  if (!String(sh.getRange(1, 4).getValue()).trim()) sh.getRange(1, 4).setValue(USER_HEAD[3]).setFontWeight("bold").setBackground("#e8f0e4");
+  return sh;
+}
+
+// 管理員：列出、新增／修改、刪除使用人
+function manageUsers_(body, me) {
+  var sh = userSheet_();
+  var n = sh.getLastRow() - 1;
+  var rows = n > 0 ? sh.getRange(2, 1, n, 4).getValues() : [];
+  function find(name) { for (var i = 0; i < rows.length; i++) if (String(rows[i][0]).trim() === name) return i; return -1; }
+  if (body.action === "saveUser") {
+    var u = body.user || {};
+    var name = String(u.name || "").trim(), pw = String(u.pw || "").trim();
+    if (!name || !pw) return { ok: false, error: "請填寫姓名和密碼" };
+    var i = find(name);
+    var disabled = u.disabled && name !== me ? "停用" : "";
+    if (i < 0) {
+      sh.getRange(sh.getLastRow() + 1, 1, 1, 3).setNumberFormat("@").setValues([[name, pw, disabled]]);
+    } else {
+      sh.getRange(i + 2, 2, 1, 2).setNumberFormat("@").setValues([[pw, disabled]]);
+    }
+    return { ok: true, done: true };
+  }
+  if (body.action === "deleteUser") {
+    var dn = String(body.name || "").trim();
+    if (dn === me) return { ok: false, error: "不能刪除自己" };
+    var di = find(dn);
+    if (di >= 0) sh.deleteRow(di + 2);
+    return { ok: true, done: true };
+  }
+  return {
+    ok: true,
+    users: rows.filter(function (r) { return String(r[0]).trim(); }).map(function (r) {
+      var nm = String(r[0]).trim();
+      return { name: nm, pw: String(r[1]), disabled: !!String(r[2]).trim(), admin: isAdmin_(nm, r[3]) };
+    })
+  };
+}
+
+// 帳號＝姓名，密碼＝試算表 B 欄；連續輸入錯誤太多次會暫時鎖住
 function checkUser_(name, pw) {
-  if (!name || !digits_(pw)) return { ok: false, error: "請輸入姓名與密碼" };
+  if (!name || !String(pw || "").trim()) return { ok: false, error: "請輸入姓名與密碼" };
   var cache = CacheService.getScriptCache();
   var ck = "fail:" + name;
   if (Number(cache.get(ck) || 0) >= 8) return { ok: false, error: "密碼錯誤次數過多，請 10 分鐘後再試" };
   var sh = book_().getSheetByName(SH_USER);
   if (sh && sh.getLastRow() > 1) {
-    var rows = sh.getRange(2, 1, sh.getLastRow() - 1, 3).getValues();
+    var rows = sh.getRange(2, 1, sh.getLastRow() - 1, Math.max(3, Math.min(4, sh.getLastColumn()))).getValues();
     for (var i = 0; i < rows.length; i++) {
-      if (String(rows[i][0]).trim() === name && digits_(rows[i][1]) === digits_(pw)) {
+      if (String(rows[i][0]).trim() === name && samePw_(rows[i][1], pw)) {
         if (String(rows[i][2]).trim()) return { ok: false, error: "此帳號已停用" };
-        return { ok: true };
+        return { ok: true, admin: isAdmin_(name, rows[i][3]) };
       }
     }
   }

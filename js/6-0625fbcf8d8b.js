@@ -126,6 +126,8 @@
     var raw=localStorage.getItem(KEY);if(raw&&ready())scan(raw);
     flushSoon();
   }
+  // 登入畫面（js/7-login.js）登入成功後呼叫：把這支手機已存的叫料單補送一次
+  window.jiaoliaoSyncRescan=function(){var raw=localStorage.getItem(KEY);if(raw)scan(raw);lastMsg="";flushSoon();paint()};
   window.addEventListener("online",flushSoon);
   if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",mount);else mount();
 })();
