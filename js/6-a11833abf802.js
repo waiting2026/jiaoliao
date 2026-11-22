@@ -172,6 +172,15 @@
     var srv={};j.orders.forEach(function(x){if(x&&x.rev&&x.order)srv[x.id]=x});
     var nEdit=0,nDel=0,touched=[];
     var siteCh=Array.isArray(j.sites)&&j.sites.length?applySites(S,j.sites):false;
+    // 管理員在後台「清除所有叫料單」：這支手機在那之前的叫料紀錄和未完成的叫料單也一起清掉
+    var nReset=0;
+    if(j.resetAt&&j.resetAt>(S.resetDone||0)){
+      S.projects.forEach(function(p){
+        p.orders=(p.orders||[]).filter(function(o){var t=o.saved||o.created||0;if(t&&t<j.resetAt){nReset++;delete queue[o.id];delete seen[o.id];return false}return true});
+        if(p.draft&&(p.draft.created||0)<j.resetAt){p.draft=null;nReset++}
+      });
+      S.resetDone=j.resetAt;siteCh=true;
+    }
     S.projects.forEach(function(p){
       var keep=[];
       (p.orders||[]).forEach(function(o){
@@ -202,6 +211,7 @@
     touched.forEach(function(o){seen[o.id]=sig(o);delete queue[o.id]});
     jset(SEEN_KEY,seen);jset(QUEUE_KEY,queue);
     if(window.jiaoliaoAppReload)window.jiaoliaoAppReload();
+    if(nReset){jset(SEEN_KEY,seen);jset(QUEUE_KEY,queue);lastMsg="管理員已清除舊的叫料紀錄";paint()}
     if(!nEdit&&!nDel){paint();return}
     lastMsg="管理員"+(nEdit?"修改了 "+nEdit+" 張":"")+(nEdit&&nDel?"、":"")+(nDel?"刪除了 "+nDel+" 張":"")+"叫料單，紀錄已更新";
     paint();

@@ -67,7 +67,7 @@
     gate.innerHTML='<form class="lg-card" autocomplete="on">'+
       '<div class="lg-logo"><img src="app-icon-192.png" alt=""><div><h1>工程叫料小幫手</h1><small>請先登入</small></div></div>'+
       '<label for="lgWho">使用人（姓名）</label><input id="lgWho" name="username" autocomplete="username" placeholder="例如：王小明" value="'+esc(c.who||"")+'">'+
-      '<label for="lgPw">密碼</label><input id="lgPw" name="password" type="password" autocomplete="current-password" placeholder="請輸入密碼">'+
+      '<label for="lgPw">密碼</label><input id="lgPw" name="password" type="password" inputmode="tel" autocomplete="current-password" placeholder="請輸入密碼">'+
       '<label class="lg-show"><input type="checkbox" id="lgShow"> 顯示密碼</label>'+
       '<button class="lg-go" type="submit">登入</button>'+
       '<p class="lg-msg">'+esc(msg||"")+'</p>'+
@@ -158,7 +158,7 @@
     var d=document.createElement("dialog");d.id="userDlg";
     d.innerHTML='<div class="sh-h"><h2 style="margin:0">👥 使用者管理</h2><small>新增的人用「姓名＋密碼」登入。刪除或停用後，對方下次連上網路時就會被登出。</small></div>'+
       '<div class="sh-b"><p id="uMsg" style="font-size:15px">讀取中…</p><div id="uList"></div>'+
-      '<div class="add"><input id="uName" placeholder="姓名" autocomplete="off"><input id="uPw" placeholder="密碼" autocomplete="off"><button class="btn btn-p" id="uAdd" type="button">＋ 新增使用人</button></div></div>'+
+      '<div class="add"><input id="uName" placeholder="姓名" autocomplete="off"><input id="uPw" inputmode="tel" placeholder="密碼" autocomplete="off"><button class="btn btn-p" id="uAdd" type="button">＋ 新增使用人</button></div></div>'+
       '<div class="sh-f"><button class="btn" type="button" id="uClose" style="font-size:16px">關閉</button></div>';
     document.body.appendChild(d);
     var msg=d.querySelector("#uMsg"),list=d.querySelector("#uList");

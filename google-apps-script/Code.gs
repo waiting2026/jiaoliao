@@ -474,8 +474,9 @@ function pull_(who, admin, all) {
   var dead = deletedIds_(ss), gone = [];
   Object.keys(dead).forEach(function (id) { if ((admin && all) || dead[id].who === who) gone.push({ id: id, at: dead[id].at }); });
   var sites = getSites_(ss);
-  if (admin && all) return { ok: true, orders: list, deleted: gone, sites: sites, now: Date.now() };
-  return { ok: true, orders: list.filter(function (x) { return x.who === who && x.rev; }), deleted: gone, sites: sites, now: Date.now() };
+  var resetAt = Number(PropertiesService.getScriptProperties().getProperty("RESET_AT") || 0);
+  if (admin && all) return { ok: true, orders: list, deleted: gone, sites: sites, resetAt: resetAt, now: Date.now() };
+  return { ok: true, orders: list.filter(function (x) { return x.who === who && x.rev; }), deleted: gone, sites: sites, resetAt: resetAt, now: Date.now() };
 }
 
 function adminOrder_(body, me) {
@@ -656,4 +657,30 @@ function pplEdit_(e, sh) {
 // 建立／補齊「工地資料」「收貨人」分頁（可在編輯器直接執行）
 function setupSites() {
   siteSheets_(book_());
+}
+
+// 清除所有叫料單（給同事重新測試用）：先把「訂單」「明細」複製成備份分頁，
+// 再把每張單記到「已刪除」（手機同步時會把自己的舊紀錄一起清掉），最後清空「訂單」「明細」。
+function clearAllOrders() {
+  var ss = book_(), so = orderSheet_(ss), sl = lineSheet_(ss);
+  var tag = Utilities.formatDate(new Date(), "Asia/Taipei", "MMdd-HHmm");
+  if (so.getLastRow() > 1) so.copyTo(ss).setName("備份訂單_" + tag);
+  if (sl.getLastRow() > 1) sl.copyTo(ss).setName("備份明細_" + tag);
+  // 手機下次同步時，會把這個時間以前的叫料紀錄清掉
+  PropertiesService.getScriptProperties().setProperty("RESET_AT", String(Date.now()));
+  var del = ensureSheet_(ss, SH_DEL, DEL_HEAD);
+  var n = so.getLastRow() - 1, now = Date.now();
+  if (n > 0) {
+    var rows = so.getRange(2, 1, n, ORDER_HEAD.length).getValues().filter(function (r) { return r[0]; }).map(function (r) {
+      return [r[0], String(r[10] || ""), now, "清除測試", r[1], r[2]];
+    });
+    if (rows.length) del.getRange(del.getLastRow() + 1, 1, rows.length, DEL_HEAD.length).setValues(rows);
+    clearRows_(so, n);
+  }
+  var m = sl.getLastRow() - 1;
+  if (m > 0) clearRows_(sl, m);
+}
+function clearRows_(sh, n) {
+  if (sh.getMaxRows() <= n + 1) sh.insertRowsAfter(sh.getMaxRows(), 5);
+  sh.deleteRows(2, n);
 }
