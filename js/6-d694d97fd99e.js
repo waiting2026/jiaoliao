@@ -153,7 +153,7 @@
     if(!siteq.length)return Promise.resolve(true);
     var batch=siteq.slice();
     return post({action:"saveSites",sites:batch}).then(function(j){
-      if(j&&j.ok){siteq=siteq.slice(batch.length);jset(SITEQ_KEY,siteq);return true}
+      if(j&&j.ok&&j.sites){siteq=siteq.slice(batch.length);jset(SITEQ_KEY,siteq);return true}
       return false}).catch(function(){return false});
   }
   function pull(){
