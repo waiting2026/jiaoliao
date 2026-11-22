@@ -497,7 +497,7 @@ function gkDlg(x){
     const b=e.target.closest("[data-a]");if(b){const inp=b.closest(".vrow").querySelector("input");inp.value=Math.max(0,(+inp.value||0)+(b.dataset.a==="+"?1:-1))||""}
   };
 }
-const DIA_FIRST=new Set(["電鍍六角螺絲(半牙)"]);
+const DIA_FIRST=new Set(["電鍍六角螺絲(半牙)","電鍍六角螺絲(全牙)"]);
 function itemDlg(key,initialSpec){
   const x=ITEMS.find(i=>i.key===key);if(x&&x.it.n==="H型鋼"&&x.g==="H型鋼"){hbDlg(x);return}const specs=[...new Set(x.it.v.map(v=>v[1]))];let spec=initialSpec||null;if(specs.length&&specs.every(z=>/^(無孔|單孔|雙孔)[36]M$/.test(z))){const HOLE_ORD=["無孔","單孔","雙孔"];specs.sort((p,q)=>HOLE_ORD.indexOf(p.slice(0,2))-HOLE_ORD.indexOf(q.slice(0,2))||p.localeCompare(q))}
   const D=$("#dlg");
