@@ -7,6 +7,7 @@
   var SEEN_KEY="jiaoliao_sync_seen";
   var QUEUE_KEY="jiaoliao_sync_queue";
   var DEL_KEY="jiaoliao_sync_delq";
+  var SITEQ_KEY="jiaoliao_sync_siteq";
   // 部署 Google Apps Script 後，把網頁應用程式網址貼在這裡
   var SYNC_URL="https://script.google.com/macros/s/AKfycbwf1DwO6ARo_ePfa3TT3ZPecLmNnqjksK3sPxcIN-5_Obn3mHSQerYo1rRzQRJyNtM/exec";
 
@@ -20,6 +21,7 @@
   var seen=jget(SEEN_KEY,{});
   var queue=jget(QUEUE_KEY,{});
   var delq=jget(DEL_KEY,{});
+  var siteq=jget(SITEQ_KEY,[]);
   var sending=false,timer=null,lastMsg="";
 
   function pack(p,o){
@@ -144,11 +146,20 @@
   }
   // ---------- 從後台拿回管理員的修改／刪除，更新這支手機的「紀錄」 ----------
   var pulling=false;
+  function post(body){var c=cfg();body.who=c.who;body.code=c.code;return fetch(c.url,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(body)}).then(function(r){return r.json()})}
+  // 手機上改了工地／收貨人：先排隊，有網路就送到試算表「工地資料」「收貨人」
+  window.jiaoliaoSiteSave=function(c){if(!c||!c.name)return;siteq.push(c);jset(SITEQ_KEY,siteq);setTimeout(pull,300)};
+  function flushSites(){
+    if(!siteq.length)return Promise.resolve(true);
+    var batch=siteq.slice();
+    return post({action:"saveSites",sites:batch}).then(function(j){
+      if(j&&j.ok){siteq=siteq.slice(batch.length);jset(SITEQ_KEY,siteq);return true}
+      return false}).catch(function(){return false});
+  }
   function pull(){
     if(pulling||!ready()||!navigator.onLine)return;
-    pulling=true;var c=cfg();
-    fetch(c.url,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({action:"pull",who:c.who,code:c.code})})
-      .then(function(r){return r.json()})
+    pulling=true;
+    flushSites().then(function(){return post({action:"pull"})})
       .then(function(j){if(j&&j.ok&&Array.isArray(j.orders))applyPull(j)})
       .catch(function(){})
       .then(function(){pulling=false});
@@ -160,6 +171,7 @@
     var dead={};(j.deleted||[]).forEach(function(d){dead[d.id]=1});
     var srv={};j.orders.forEach(function(x){if(x&&x.rev&&x.order)srv[x.id]=x});
     var nEdit=0,nDel=0,touched=[];
+    var siteCh=Array.isArray(j.sites)&&j.sites.length?applySites(S,j.sites):false;
     S.projects.forEach(function(p){
       var keep=[];
       (p.orders||[]).forEach(function(o){
@@ -185,13 +197,54 @@
       // 被刪除的單如果還開在「叫料單」頁，改成新的一張，免得再存回去
       if(p.draft&&dead[p.draft.id]){p.draft.id=Date.now().toString(36)+Math.random().toString(36).slice(2,7);p.draft.no="";delete p.draft.adminRev}
     });
-    if(!nEdit&&!nDel)return;
+    if(!nEdit&&!nDel&&!siteCh)return;
     rawSet.call(localStorage,KEY,JSON.stringify(S));
     touched.forEach(function(o){seen[o.id]=sig(o);delete queue[o.id]});
     jset(SEEN_KEY,seen);jset(QUEUE_KEY,queue);
     if(window.jiaoliaoAppReload)window.jiaoliaoAppReload();
+    if(!nEdit&&!nDel){paint();return}
     lastMsg="管理員"+(nEdit?"修改了 "+nEdit+" 張":"")+(nEdit&&nDel?"、":"")+(nDel?"刪除了 "+nDel+" 張":"")+"叫料單，紀錄已更新";
     paint();
+  }
+  // 試算表「工地資料」「收貨人」→ 這支手機的工地（試算表為準）
+  function nid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
+  function applySites(S,sites){
+    var before=JSON.stringify([S.projects.map(function(p){return[p.id,p.name,p.sid,p.co,p.addr,p.ppl,p.pplGone,p.off]}),S.cur,S.siteSynced]);
+    var pend={};siteq.forEach(function(c){if(c.id)pend[c.id]=1;pend["n:"+c.name]=1;if(c.oldName)pend["n:"+c.oldName]=1});
+    var byName={};sites.forEach(function(s){byName[s.name]=s});
+    // 第一次接上試算表：這支手機自己加過、試算表沒有的工地／收貨人，補送上去（不會刪試算表的資料）
+    if(!S.siteSynced){
+      S.projects.forEach(function(p){
+        var s=byName[p.name],mine=p.ppl||[];
+        if(!s){if(p.orders&&p.orders.length||mine.length||p.addr)siteq.push({name:p.name,co:p.co||"",addr:p.addr||"",add:mine,undel:true});return}
+        var add=mine.filter(function(q){return q[0]&&!s.ppl.some(function(x){return x[0]===q[0]})&&!s.gone.some(function(x){return x[0]===q[0]})});
+        if(add.length)siteq.push({id:s.id,name:s.name,add:add});
+      });
+      jset(SITEQ_KEY,siteq);S.siteSynced=true;
+      if(siteq.length)setTimeout(pull,1000);
+      siteq.forEach(function(c){if(c.id)pend[c.id]=1;pend["n:"+c.name]=1});
+    }
+    var order={};
+    sites.forEach(function(s,i){
+      order[s.id]=i;
+      var p=null,k;
+      for(k=0;k<S.projects.length&&!p;k++)if(S.projects[k].sid===s.id)p=S.projects[k];
+      for(k=0;k<S.projects.length&&!p;k++)if(!S.projects[k].sid&&S.projects[k].name===s.name)p=S.projects[k];
+      if(pend[s.id]||pend["n:"+s.name]||(p&&pend["n:"+p.name]))return;
+      if(s.off){
+        if(!p)return;
+        var busy=(p.orders&&p.orders.length)||(p.draft&&p.draft.lines&&p.draft.lines.length);
+        if(!busy&&S.projects.length>1){S.projects=S.projects.filter(function(z){return z!==p});if(S.cur===p.id)S.cur=S.projects[0].id}
+        else{p.sid=s.id;p.off=true}
+        return;
+      }
+      if(!p){p={id:nid(),name:s.name,addr:s.addr,orders:[],draft:null};S.projects.push(p)}
+      if(p.name!==s.name){if(p.draft&&p.draft.project===p.name)p.draft.project=s.name;p.name=s.name}
+      p.sid=s.id;p.co=s.co;p.addr=s.addr;p.ppl=s.ppl;p.pplGone=s.gone;delete p.off;
+    });
+    S.projects.sort(function(a,b){var x=a.sid in order?order[a.sid]:1e6,y=b.sid in order?order[b.sid]:1e6;return x-y});
+    var after=JSON.stringify([S.projects.map(function(p){return[p.id,p.name,p.sid,p.co,p.addr,p.ppl,p.pplGone,p.off]}),S.cur,S.siteSynced]);
+    return before!==after;
   }
   window.jiaoliaoSyncPull=pull;
   setInterval(function(){if(document.visibilityState==="visible")pull()},180000);

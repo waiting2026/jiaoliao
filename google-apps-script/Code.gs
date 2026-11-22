@@ -73,6 +73,131 @@ function ensureSheet_(ss, name, head) {
   return sh;
 }
 
+// ---------- 工地資料（工地、公司抬頭、地址、收貨人）----------
+// 「工地資料」一列一個工地；「收貨人」一列一個人，同一工地可以很多人（手機上會變成下拉選單）。
+// 不要整列刪除：在「停用／刪除」欄打勾就等於刪除，取消打勾就恢復。
+var SH_SITE = "工地資料";
+var SITE_HEAD = ["工地名稱", "公司抬頭", "交貨地址", "停用（打勾＝刪除，取消＝恢復）", "工地ID（程式用，請勿修改）", "最後修改"];
+var SH_PPL = "收貨人";
+var PPL_HEAD = ["工地", "收貨人", "電話", "刪除（打勾＝刪除，取消＝恢復）", "最後修改"];
+var COMPANIES = ["聖和工程有限公司", "紘誠水電工程行", "澧育有限公司", "白鐵工程行"];
+var SEED_SITES = [["公司", "", "新北市新莊區民安路398號", []], ["五股倉庫", "", "新北市五股區民義路一段312號-16B", [["陳清榮", "0383-969-599"]]], ["宜蘭山河", "澧育有限公司", "宜蘭縣五結鄉親河路一段228巷26號旁工地", [["林顯呈", "0937-162-938"], ["陳豐乙", "0961-151-005"], ["曾建智", "0930-891-963"], ["王耀德", "0979-890-000"]]], ["新店大廣", "紘誠水電工程行", "新北市新店區三民路94巷6號對面", [["楊志華", "0960-119-729"]]], ["敦北飯店", "紘誠水電工程行", "台北市敦化北路242號", [["高清華", "0933-066-337"]]], ["南山A21", "紘誠水電工程行", "台北市信義區松壽路6號（大門開在市府路上5號門-互助營造）", [["林志雄", "0981-575-553"]]], ["國賓飯店", "紘誠水電工程行", "台北市中山區中山北路二段65巷9號", [["李弘溢", "0926-283-762"], ["陳致豪", "0983-822-193"]]], ["南港冠德", "澧育有限公司", "台北市南港區合成里忠孝東路六段39號", [["陳致豪", "0983-822-193"], ["李弘溢", "0926-283-762"]]], ["南海段", "聖和工程有限公司", "台北市中正區泉州街9巷12號旁工地", [["溫祥淵", "0987-419-519"]]], ["內湖緯創", "聖和工程有限公司", "台北市內湖區新湖一路191號", [["李羿萱", "0960-905-782"]]], ["竹北緯創", "聖和工程有限公司", "竹北市智慧路1號", [["游伸鋒", "0955-895-658"]]], ["竹北聯發廠", "聖和工程有限公司", "竹北市十興路291號", [["毛亮友", "0903-579-317"]]], ["湖口緯創", "聖和工程有限公司", "新竹縣湖口鄉光復北路50號", [["蔡永元", "0925-763-735"]]], ["湖口緯創 N1F", "紘誠水電工程行", "新竹縣湖口鄉光復北路50號", [["蔡永元", "0925-763-735"]]], ["湖口緯創 N1J7冰機機房", "澧育有限公司", "新竹縣湖口鄉光復北路50號", [["蔡永元", "0925-763-735"]]], ["高雄緯創", "聖和工程有限公司", "高雄市前鎮區東七街2號（高雄前鎮科技產業園區）", [["游伸鋒", "0955-895-658"], ["蔡永元", "0925-763-735"], ["覃輝豐", "0936-757-907"]]], ["龜山微星", "聖和工程有限公司", "龜山區中興路2號", [["李重陽", "0978-723-297"], ["陳柏竹", "0970-522-793"]]], ["觀音聯華", "白鐵工程行", "桃園市觀音區工業一路16之1號", [["蔡永元", "0925-763-735"]]], ["三重捷六", "聖和工程有限公司", "三重區捷運路59號對面工地", []], ["五谷王(峰左岸)", "聖和工程有限公司", "新北市三重區(疏洪西路與興德路口)", [["老闆", "0913-515-179"]]], ["青埔B基地", "紘誠水電工程行", "中壢區領航北路三段青昇路交叉口", [["覃輝豐", "0936-757-907"]]]];
+
+function siteSheets_(ss) {
+  var sh = ss.getSheetByName(SH_SITE), ph = ss.getSheetByName(SH_PPL);
+  if (sh && ph) return { site: sh, ppl: ph };
+  sh = ensureSheet_(ss, SH_SITE, SITE_HEAD);
+  ph = ensureSheet_(ss, SH_PPL, PPL_HEAD);
+  sh.getRange(2, 3, sh.getMaxRows() - 1, 1).setNumberFormat("@");
+  ph.getRange(2, 3, ph.getMaxRows() - 1, 1).setNumberFormat("@");
+  if (sh.getLastRow() < 2) {
+    var now = stamp_();
+    var rows = SEED_SITES.map(function (x) { return [x[0], x[1], x[2], false, newId_(), now]; });
+    sh.getRange(2, 1, rows.length, SITE_HEAD.length).setValues(rows);
+    var pr = [];
+    SEED_SITES.forEach(function (x) { x[3].forEach(function (q) { pr.push([x[0], q[0], q[1], false, now]); }); });
+    if (pr.length) ph.getRange(2, 1, pr.length, PPL_HEAD.length).setValues(pr);
+  }
+  siteRules_(ss);
+  sh.setColumnWidth(1, 170); sh.setColumnWidth(2, 150); sh.setColumnWidth(3, 320); sh.setColumnWidth(4, 120); sh.setColumnWidth(5, 110);
+  ph.setColumnWidth(1, 170); ph.setColumnWidth(2, 110); ph.setColumnWidth(3, 130); ph.setColumnWidth(4, 120);
+  return { site: sh, ppl: ph };
+}
+
+// 下拉選單與打勾框
+function siteRules_(ss) {
+  var sh = ss.getSheetByName(SH_SITE), ph = ss.getSheetByName(SH_PPL);
+  var n1 = sh.getMaxRows() - 1, n2 = ph.getMaxRows() - 1;
+  sh.getRange(2, 2, n1, 1).setDataValidation(SpreadsheetApp.newDataValidation().requireValueInList(COMPANIES, true).setAllowInvalid(true).build());
+  if (sh.getLastRow() > 1) sh.getRange(2, 4, sh.getLastRow() - 1, 1).insertCheckboxes();
+  ph.getRange(2, 1, n2, 1).setDataValidation(SpreadsheetApp.newDataValidation().requireValueInRange(sh.getRange("A2:A"), true).setAllowInvalid(false).setHelpText("請從工地清單選").build());
+  if (ph.getLastRow() > 1) ph.getRange(2, 4, ph.getLastRow() - 1, 1).insertCheckboxes();
+}
+
+function stamp_() { return Utilities.formatDate(new Date(), "Asia/Taipei", "yyyy-MM-dd HH:mm"); }
+function newId_() { return "s" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+
+// 給手機：所有工地（含停用的），每個工地的收貨人與已刪除的收貨人
+function getSites_(ss) {
+  var t = siteSheets_(ss);
+  var srows = t.site.getLastRow() > 1 ? t.site.getRange(2, 1, t.site.getLastRow() - 1, SITE_HEAD.length).getValues() : [];
+  var prows = t.ppl.getLastRow() > 1 ? t.ppl.getRange(2, 1, t.ppl.getLastRow() - 1, PPL_HEAD.length).getValues() : [];
+  var fix = [];
+  var out = [], byName = {};
+  srows.forEach(function (r, i) {
+    var name = String(r[0] || "").trim();
+    if (!name) return;
+    var id = String(r[4] || "");
+    if (!id) { id = newId_(); fix.push([i + 2, id]); }
+    var s = { id: id, name: name, co: String(r[1] || "").trim(), addr: String(r[2] || "").trim(), off: r[3] === true, ppl: [], gone: [] };
+    out.push(s); byName[name] = s;
+  });
+  fix.forEach(function (f) { t.site.getRange(f[0], 5).setValue(f[1]); });
+  prows.forEach(function (r) {
+    var s = byName[String(r[0] || "").trim()], nm = String(r[1] || "").trim();
+    if (!s || !nm) return;
+    var q = [nm, String(r[2] || "").trim()];
+    (r[3] === true ? s.gone : s.ppl).push(q);
+  });
+  out.forEach(function (s) { s.gone = s.gone.filter(function (g) { return !s.ppl.some(function (q) { return q[0] === g[0]; }); }); });
+  return out;
+}
+
+// 手機上改工地：{id, oldName, name, co, addr, add:[[姓名,電話]], remove:[姓名], del:true/false, undel:true}
+// 只改有變動的地方，收貨人刪除＝打勾（可恢復），不會整列刪掉。
+function saveSites_(ss, list, who) {
+  var t = siteSheets_(ss), sh = t.site, ph = t.ppl, now = stamp_();
+  (list || []).forEach(function (c) {
+    var name = String(c.name || "").trim();
+    if (!name) return;
+    var n = sh.getLastRow() - 1;
+    var rows = n > 0 ? sh.getRange(2, 1, n, SITE_HEAD.length).getValues() : [];
+    var at = -1;
+    for (var i = 0; i < rows.length && at < 0; i++) if (c.id && String(rows[i][4]) === c.id) at = i;
+    for (i = 0; i < rows.length && at < 0; i++) if (String(rows[i][0]).trim() === String(c.oldName || name).trim()) at = i;
+    for (i = 0; i < rows.length && at < 0; i++) if (String(rows[i][0]).trim() === name) at = i;
+    var old = at >= 0 ? String(rows[at][0]).trim() : name;
+    if (at < 0) {
+      sh.appendRow([name, c.co || "", c.addr || "", !!c.del, c.id || newId_(), now]);
+      sh.getRange(sh.getLastRow(), 4).insertCheckboxes();
+    } else {
+      var r = rows[at];
+      var nv = [name, c.co != null ? c.co : r[1], c.addr != null ? c.addr : r[2], c.del ? true : (c.undel ? false : r[3]), r[4] || c.id || newId_(), now];
+      sh.getRange(at + 2, 1, 1, SITE_HEAD.length).setValues([nv]);
+      if (old !== name) renamePpl_(ph, old, name);
+    }
+    var m = ph.getLastRow() - 1;
+    var pr = m > 0 ? ph.getRange(2, 1, m, PPL_HEAD.length).getValues() : [];
+    (c.remove || []).forEach(function (nm) {
+      for (var k = 0; k < pr.length; k++) if (String(pr[k][0]).trim() === name && String(pr[k][1]).trim() === nm && pr[k][3] !== true) {
+        ph.getRange(k + 2, 4, 1, 2).setValues([[true, now + " " + who]]); pr[k][3] = true;
+      }
+    });
+    (c.add || []).forEach(function (q) {
+      var nm = String(q[0] || "").trim(), tel = String(q[1] || "").trim();
+      if (!nm) return;
+      var hit = -1;
+      for (var k = 0; k < pr.length; k++) if (String(pr[k][0]).trim() === name && String(pr[k][1]).trim() === nm) { if (hit < 0 || pr[k][3] !== true) hit = k; }
+      if (hit >= 0) {
+        ph.getRange(hit + 2, 3, 1, 3).setValues([[tel || pr[hit][2], false, now + " " + who]]); pr[hit][3] = false;
+      } else {
+        ph.appendRow([name, nm, tel, false, now + " " + who]);
+        ph.getRange(ph.getLastRow(), 4).insertCheckboxes();
+        pr.push([name, nm, tel, false, now]);
+      }
+    });
+  });
+  return getSites_(ss);
+}
+
+function renamePpl_(ph, old, name) {
+  var m = ph.getLastRow() - 1;
+  if (m < 1) return;
+  var a = ph.getRange(2, 1, m, 1).getValues(), ch = false;
+  a.forEach(function (r) { if (String(r[0]).trim() === old) { r[0] = name; ch = true; } });
+  if (ch) ph.getRange(2, 1, m, 1).setValues(a);
+}
+
 function doGet() {
   return json_({ ok: true, name: "工程叫料小幫手後台" });
 }
@@ -89,6 +214,11 @@ function doPost(e) {
       if (!auth.admin) return json_({ ok: false, error: "只有管理員可以管理使用人" });
       lock.waitLock(25000);
       return json_(manageUsers_(body, who));
+    }
+    if (body.action === "sites") return json_({ ok: true, sites: getSites_(book_()) });
+    if (body.action === "saveSites") {
+      lock.waitLock(25000);
+      return json_({ ok: true, sites: saveSites_(book_(), body.sites || [], who) });
     }
     if (body.action === "pull") return json_(pull_(who, auth.admin, body.all));
     if (body.action === "deleteOwn") {
@@ -343,8 +473,9 @@ function pull_(who, admin, all) {
   var list = rowsToOrders_(ss);
   var dead = deletedIds_(ss), gone = [];
   Object.keys(dead).forEach(function (id) { if ((admin && all) || dead[id].who === who) gone.push({ id: id, at: dead[id].at }); });
-  if (admin && all) return { ok: true, orders: list, deleted: gone, now: Date.now() };
-  return { ok: true, orders: list.filter(function (x) { return x.who === who && x.rev; }), deleted: gone, now: Date.now() };
+  var sites = getSites_(ss);
+  if (admin && all) return { ok: true, orders: list, deleted: gone, sites: sites, now: Date.now() };
+  return { ok: true, orders: list.filter(function (x) { return x.who === who && x.rev; }), deleted: gone, sites: sites, now: Date.now() };
 }
 
 function adminOrder_(body, me) {
@@ -410,6 +541,8 @@ var LINE_EDIT_COLS = { 6: "name", 7: "size", 8: "spec", 9: "unit", 10: "qty", 11
 function onSheetEdit(e) {
   if (!e || !e.range) return;
   var sh = e.range.getSheet(), name = sh.getName();
+  if (name === SH_SITE) { siteEdit_(e, sh); return; }
+  if (name === SH_PPL) { pplEdit_(e, sh); return; }
   if (name !== SH_ORDER && name !== SH_LINE) return;
   var row = e.range.getRow(), col = e.range.getColumn();
   if (row < 2 || e.range.getNumRows() > 1 || e.range.getNumColumns() > 1) return;
@@ -490,4 +623,32 @@ function saveFromSheet_(so, sl, o, who) {
   o.adminRev = rev;
   o.adminBy = "試算表";
   upsert_(so, sl, o, c ? c.who || who : who, rev);
+}
+
+// 在「工地資料」改工地名稱：收貨人分頁跟著改名；新增一列時自動給工地ID
+function siteEdit_(e, sh) {
+  var row = e.range.getRow();
+  if (row < 2) return;
+  var ss = sh.getParent(), ph = ss.getSheetByName(SH_PPL);
+  if (e.range.getNumRows() === 1 && e.range.getNumColumns() === 1 && e.range.getColumn() === 1 && ph && e.oldValue) {
+    var nv = String(e.value || "").trim();
+    if (nv) renamePpl_(ph, String(e.oldValue).trim(), nv);
+  }
+  for (var r = row; r < row + e.range.getNumRows(); r++) {
+    var v = sh.getRange(r, 1, 1, 5).getValues()[0];
+    if (String(v[0]).trim() && !v[4]) { sh.getRange(r, 5).setValue(newId_()); if (v[3] !== true && v[3] !== false) sh.getRange(r, 4).insertCheckboxes(); }
+    if (String(v[0]).trim()) sh.getRange(r, 6).setValue(stamp_());
+  }
+}
+
+// 在「收貨人」最下面自己加一列：自動補上打勾框與修改時間
+function pplEdit_(e, sh) {
+  var row = e.range.getRow();
+  if (row < 2) return;
+  for (var r = row; r < row + e.range.getNumRows(); r++) {
+    var v = sh.getRange(r, 1, 1, 4).getValues()[0];
+    if (!String(v[0]).trim() && !String(v[1]).trim()) continue;
+    if (v[3] !== true && v[3] !== false) sh.getRange(r, 4).insertCheckboxes();
+    sh.getRange(r, 5).setValue(stamp_());
+  }
 }
