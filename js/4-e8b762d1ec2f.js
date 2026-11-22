@@ -497,11 +497,23 @@ function gkDlg(x){
     const b=e.target.closest("[data-a]");if(b){const inp=b.closest(".vrow").querySelector("input");inp.value=Math.max(0,(+inp.value||0)+(b.dataset.a==="+"?1:-1))||""}
   };
 }
+const DIA_FIRST=new Set(["電鍍六角螺絲(半牙)"]);
 function itemDlg(key,initialSpec){
   const x=ITEMS.find(i=>i.key===key);if(x&&x.it.n==="H型鋼"&&x.g==="H型鋼"){hbDlg(x);return}const specs=[...new Set(x.it.v.map(v=>v[1]))];let spec=initialSpec||null;if(specs.length&&specs.every(z=>/^(無孔|單孔|雙孔)[36]M$/.test(z))){const HOLE_ORD=["無孔","單孔","雙孔"];specs.sort((p,q)=>HOLE_ORD.indexOf(p.slice(0,2))-HOLE_ORD.indexOf(q.slice(0,2))||p.localeCompare(q))}
   const D=$("#dlg");
+  // 先選螺絲徑、再選長度（使用者要求：電鍍六角螺絲(半牙)）
+  const DIA_MODE=DIA_FIRST.has(x.it.n)&&x.it.v.every(v=>/×/.test(v[0]));
+  const DIAS=DIA_MODE?[...new Set(x.it.v.map(v=>v[0].split("×")[0]))]:[];
+  let dia=DIA_MODE?(DIAS.find(d=>x.it.v.some((v,vi)=>v[0].split("×")[0]===d&&findLine(vKey(x.key,vi))))||null):null;
+  const diaCount=d=>x.it.v.reduce((a,v,vi)=>a+(v[0].split("×")[0]===d&&findLine(vKey(x.key,vi))?1:0),0);
+  const diaChips=()=>DIAS.map(d=>{const n=diaCount(d);return `<button class="chip${d===dia?" on":""}" data-d="${esc(d)}" style="font-size:18px;padding:8px 14px;min-width:64px">${esc(d)}${n?` <small style="font-size:12px">(${n})</small>`:""}</button>`}).join("");
   function body(){
-    const rows=x.it.v.map((v,vi)=>({v,vi})).filter(r=>spec==null||r.v[1]===spec);if(/^預埋螺絲/.test(x.it.n)){const EMB_COL=["紅","藍","黃","綠","白"];const so=[...new Set(x.it.v.map(v=>v[0]))];rows.sort((p,q)=>so.indexOf(p.v[0])-so.indexOf(q.v[0])||EMB_COL.indexOf(p.v[1])-EMB_COL.indexOf(q.v[1]))}if(x.it.n==="鍍鋅角鐵"){const ANGLE_SORT=z=>{const m=z.v[0].match(/^([\d\-\/]+)"\*([\d.]+)mm/);if(!m)return [99,0,""];const [w,f]=m[1].split("-");const inch=f?(+w+eval(f)):eval(w);return [inch,+m[2],z.v[1]]};rows.sort((p,q)=>{const A=ANGLE_SORT(p),B=ANGLE_SORT(q);return A[0]-B[0]||A[1]-B[1]||A[2].localeCompare(B[2])})}
+    if(DIA_MODE&&!dia)return `<p style="font-size:18px;color:#6b7280;text-align:center;padding:28px 0">👆 請先選上面的螺絲徑<br>再選長度</p>`;
+    const rows=x.it.v.map((v,vi)=>({v,vi})).filter(r=>(spec==null||r.v[1]===spec)&&(!DIA_MODE||r.v[0].split("×")[0]===dia));
+    if(DIA_MODE)return `<div style="font-size:15px;color:#4b5563;margin:4px 0 6px">② ${esc(dia)} 徑・請選長度</div>`+rows.map(({v,vi})=>{const l=findLine(vKey(x.key,vi));const qn=l?l.qty:0;
+      return `<div class="vrow ${qn?"in":""}" data-vi="${vi}"><div class="sz"><b>長 ${esc(v[0].split("×")[1])}</b><small>${esc(dia)} 徑</small></div>
+      <div class="pp"><small>單位：${esc(unitFor(v[3]))}</small></div>
+      <div class="step"><button data-a="-" aria-label="減少">−</button><input type="number" inputmode="decimal" min="0" value="${qn||""}" placeholder="0"><button data-a="+" aria-label="增加">＋</button></div></div>`}).join("");if(/^預埋螺絲/.test(x.it.n)){const EMB_COL=["紅","藍","黃","綠","白"];const so=[...new Set(x.it.v.map(v=>v[0]))];rows.sort((p,q)=>so.indexOf(p.v[0])-so.indexOf(q.v[0])||EMB_COL.indexOf(p.v[1])-EMB_COL.indexOf(q.v[1]))}if(x.it.n==="鍍鋅角鐵"){const ANGLE_SORT=z=>{const m=z.v[0].match(/^([\d\-\/]+)"\*([\d.]+)mm/);if(!m)return [99,0,""];const [w,f]=m[1].split("-");const inch=f?(+w+eval(f)):eval(w);return [inch,+m[2],z.v[1]]};rows.sort((p,q)=>{const A=ANGLE_SORT(p),B=ANGLE_SORT(q);return A[0]-B[0]||A[1]-B[1]||A[2].localeCompare(B[2])})}
     return rows.map(({v,vi})=>{const l=findLine(vKey(x.key,vi));const qn=l?l.qty:0;
       return `<div class="vrow ${qn?"in":""}" data-vi="${vi}"><div class="sz"><b>${esc(v[0])}</b>${specs.length>1&&spec==null||v[1]?`<small>${esc(v[1])}</small>`:""}${v[4]?`<small>${esc(v[4])}</small>`:""}</div>
       <div class="pp"><small>單位：${esc(unitFor(v[3]))}</small></div>
@@ -511,17 +523,18 @@ function itemDlg(key,initialSpec){
   const _im=x.cat==="PVC另件・清潔口"?"":itemImage(x);
   if(ITEM_REMIND[x.it.n])setTimeout(()=>toast(ITEM_REMIND[x.it.n]),50);
   D.innerHTML=`<div class="sh-h"><h2>${_im?`<img src="${_im}" alt="" style="width:44px;height:44px;border-radius:10px;vertical-align:middle;margin-right:6px;border:1px solid #e5e7eb">`:ICON(x.cat)} ${esc(x.it.n)}</h2><small>${esc(menuCatalog[x.ci].n)}${isIllustration(x)?" · AI 示意圖":""}</small>${(ITEM_REMIND[x.it.n])?`<div class="remind" style="margin:8px 0 2px;padding:8px 10px;border-radius:10px;background:#fff3cd;border:1px solid #f0c36d;color:#7a4b00;font-weight:600;font-size:15px">${esc(ITEM_REMIND[x.it.n])}</div>`:""}${x.cat==="PVC另件・清潔口"?`<div id="cleanoutPhotos" style="display:flex;gap:12px">${cleanoutPhotos(spec)}</div>`:""}<button class="sh-x" data-close>✕</button>
-   ${specs.length>1&&specs.length<=12?`<div class="spec-chips"><button class="chip on" data-s="__all">全部</button>${specs.map(s=>`<button class="chip" data-s="${esc(s)}">${esc(s||"一般")}</button>`).join("")}</div>`:""}</div>
+   ${DIA_MODE?`<div style="font-size:15px;font-weight:600;margin:10px 0 4px">① 先選螺絲徑</div><div class="spec-chips" id="diaChips">${diaChips()}</div>`:""}${!DIA_MODE&&specs.length>1&&specs.length<=12?`<div class="spec-chips"><button class="chip on" data-s="__all">全部</button>${specs.map(s=>`<button class="chip" data-s="${esc(s)}">${esc(s||"一般")}</button>`).join("")}</div>`:""}</div>
    <div class="sh-b" id="shb">${body()}</div>
    <div class="sh-f"><span class="note" style="margin-right:auto;align-self:center" id="shn"></span><button class="btn btn-p" data-close>完成</button></div>`;
   const shn=()=>{$("#shn").textContent=total()?`此品項已選 ${total()} 種規格`:"輸入數量即加入叫料單"};shn();
   let changed=false;
   D.onclick=e=>{
     if(e.target.closest("[data-close]")){if(changed&&(x.g==="PVC管材"||(x.g==="PVC另件"&&!/^塑膠油/.test(x.it.n)))&&x.it.v.some((v,vi)=>findLine(vKey(x.key,vi)))){pipeBrandDlg(x);return}if(changed&&x.it.n==="塑膠油"&&x.it.v.some((v,vi)=>findLine(vKey(x.key,vi)))){brushDlg();return}if(changed&&/直角管束|牙條固定片/.test(x.it.n)&&(draft().angleClampAccessoryCounts?.[x.key]||x.it.v.some((v,vi)=>findLine(vKey(x.key,vi))))){raDlg(x);return}if(changed&&x.it.fl1120&&/法蘭|盲板/.test(x.it.n)&&!/墊片/.test(x.it.n)&&x.it.v.some((v,vi)=>findLine(vKey(x.key,vi)))){gkDlg(x);return}const g=changed?screwGroups(x):[];if(g.length){accDlg(g)}else D.close();return}
+    const dc=e.target.closest("[data-d]");if(dc){dia=dc.dataset.d;$("#diaChips").innerHTML=diaChips();$("#shb").innerHTML=body();$("#shb").scrollTop=0;return}
     const c=e.target.closest("[data-s]");if(c){spec=c.dataset.s==="__all"?null:c.dataset.s;D.querySelectorAll("[data-s]").forEach(z=>z.classList.toggle("on",z===c));$("#shb").innerHTML=body();const photos=$("#cleanoutPhotos");if(photos)photos.innerHTML=cleanoutPhotos(spec);return}
-    const b=e.target.closest("[data-a]");if(b){const r=b.closest(".vrow");const inp=r.querySelector("input");let n=(+inp.value||0)+(b.dataset.a==="+"?1:-1);if(n<0)n=0;inp.value=n||"";setQty(x,+r.dataset.vi,n);changed=true;r.classList.toggle("in",n>0);shn()}
+    const b=e.target.closest("[data-a]");if(b){const r=b.closest(".vrow");const inp=r.querySelector("input");let n=(+inp.value||0)+(b.dataset.a==="+"?1:-1);if(n<0)n=0;inp.value=n||"";setQty(x,+r.dataset.vi,n);changed=true;r.classList.toggle("in",n>0);shn();if(DIA_MODE)$("#diaChips").innerHTML=diaChips()}
   };
-  D.oninput=e=>{const inp=e.target.closest(".vrow input");if(!inp)return;const r=inp.closest(".vrow");setQty(x,+r.dataset.vi,inp.value);changed=true;r.classList.toggle("in",+inp.value>0);shn()};
+  D.oninput=e=>{const inp=e.target.closest(".vrow input");if(!inp)return;const r=inp.closest(".vrow");setQty(x,+r.dataset.vi,inp.value);changed=true;r.classList.toggle("in",+inp.value>0);shn();if(DIA_MODE)$("#diaChips").innerHTML=diaChips()};
   D.onclose=()=>{renderList()};
   D.showModal();
 }
