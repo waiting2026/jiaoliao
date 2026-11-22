@@ -659,26 +659,15 @@ function setupSites() {
   siteSheets_(book_());
 }
 
-// 清除所有叫料單（給同事重新測試用）：先把「訂單」「明細」複製成備份分頁，
-// 再把每張單記到「已刪除」（手機同步時會把自己的舊紀錄一起清掉），最後清空「訂單」「明細」。
+// 清除所有叫料單（重新開始測試用）：清空「訂單」「明細」「已刪除」，刪掉舊的備份分頁，
+// 手機下次同步時也會把這個時間以前的叫料紀錄清掉。
 function clearAllOrders() {
   var ss = book_(), so = orderSheet_(ss), sl = lineSheet_(ss);
-  var tag = Utilities.formatDate(new Date(), "Asia/Taipei", "MMdd-HHmm");
-  if (so.getLastRow() > 1) so.copyTo(ss).setName("備份訂單_" + tag);
-  if (sl.getLastRow() > 1) sl.copyTo(ss).setName("備份明細_" + tag);
-  // 手機下次同步時，會把這個時間以前的叫料紀錄清掉
   PropertiesService.getScriptProperties().setProperty("RESET_AT", String(Date.now()));
-  var del = ensureSheet_(ss, SH_DEL, DEL_HEAD);
-  var n = so.getLastRow() - 1, now = Date.now();
-  if (n > 0) {
-    var rows = so.getRange(2, 1, n, ORDER_HEAD.length).getValues().filter(function (r) { return r[0]; }).map(function (r) {
-      return [r[0], String(r[10] || ""), now, "清除測試", r[1], r[2]];
-    });
-    if (rows.length) del.getRange(del.getLastRow() + 1, 1, rows.length, DEL_HEAD.length).setValues(rows);
-    clearRows_(so, n);
-  }
-  var m = sl.getLastRow() - 1;
-  if (m > 0) clearRows_(sl, m);
+  [so, sl, ss.getSheetByName(SH_DEL)].forEach(function (sh) {
+    if (sh && sh.getLastRow() > 1) clearRows_(sh, sh.getLastRow() - 1);
+  });
+  ss.getSheets().forEach(function (sh) { if (/^備份(訂單|明細)_/.test(sh.getName())) ss.deleteSheet(sh); });
 }
 function clearRows_(sh, n) {
   if (sh.getMaxRows() <= n + 1) sh.insertRowsAfter(sh.getMaxRows(), 5);
