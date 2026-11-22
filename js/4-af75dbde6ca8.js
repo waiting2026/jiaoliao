@@ -511,7 +511,7 @@ function itemDlg(key,initialSpec){
     if(DIA_MODE&&!dia)return `<p style="font-size:18px;color:#6b7280;text-align:center;padding:28px 0">👆 請先選上面的螺絲徑<br>再選長度</p>`;
     const rows=x.it.v.map((v,vi)=>({v,vi})).filter(r=>(spec==null||r.v[1]===spec)&&(!DIA_MODE||r.v[0].split("×")[0]===dia));
     if(DIA_MODE)return `<div style="font-size:15px;color:#4b5563;margin:4px 0 6px">② ${esc(dia)} 徑・請選長度</div>`+rows.map(({v,vi})=>{const l=findLine(vKey(x.key,vi));const qn=l?l.qty:0;
-      return `<div class="vrow ${qn?"in":""}" data-vi="${vi}"><div class="sz"><b>長 ${esc(v[0].split("×")[1])}</b><small>${esc(dia)} 徑</small></div>
+      return `<div class="vrow ${qn?"in":""}" data-vi="${vi}"><div class="sz"><b>${esc(dia)} × ${esc(v[0].split("×")[1])}</b><small>徑 × 長度</small></div>
       <div class="pp"><small>單位：${esc(unitFor(v[3]))}</small></div>
       <div class="step"><button data-a="-" aria-label="減少">−</button><input type="number" inputmode="decimal" min="0" value="${qn||""}" placeholder="0"><button data-a="+" aria-label="增加">＋</button></div></div>`}).join("");if(/^預埋螺絲/.test(x.it.n)){const EMB_COL=["紅","藍","黃","綠","白"];const so=[...new Set(x.it.v.map(v=>v[0]))];rows.sort((p,q)=>so.indexOf(p.v[0])-so.indexOf(q.v[0])||EMB_COL.indexOf(p.v[1])-EMB_COL.indexOf(q.v[1]))}if(x.it.n==="鍍鋅角鐵"){const ANGLE_SORT=z=>{const m=z.v[0].match(/^([\d\-\/]+)"\*([\d.]+)mm/);if(!m)return [99,0,""];const [w,f]=m[1].split("-");const inch=f?(+w+eval(f)):eval(w);return [inch,+m[2],z.v[1]]};rows.sort((p,q)=>{const A=ANGLE_SORT(p),B=ANGLE_SORT(q);return A[0]-B[0]||A[1]-B[1]||A[2].localeCompare(B[2])})}
     return rows.map(({v,vi})=>{const l=findLine(vKey(x.key,vi));const qn=l?l.qty:0;
