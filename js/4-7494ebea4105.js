@@ -252,7 +252,7 @@ const supplierItems=[["內迫式短壁虎",{"n":"內迫式短壁虎 DR3030（新
   {const F=out.find(c=>c.n==="懸吊系列"),T=out.find(c=>c.n==="六角螺絲、華司、螺帽");if(F&&T){const M=["彈簧螺母","型鋼華司","楔形螺母/螺絲"];const m=F.items.filter(x=>M.includes(x.it.n));F.items=F.items.filter(x=>!M.includes(x.it.n));T.items=[...T.items,...m.map(x=>({...x,src:x.src||F.source||F.n}))];}}
   {const fi=out.findIndex(c=>c.n==="懸吊系列");if(fi>=0){const F=out[fi];const M=["預埋螺絲(鋼骨)","預埋螺絲(模板)"];const m=M.map(n=>F.items.find(x=>x.it.n===n)).filter(Boolean);if(m.length){F.items=F.items.filter(x=>!M.includes(x.it.n));out.splice(fi+1,0,{...F,n:"預埋螺絲",items:m.map(x=>({...x,src:x.src||F.source||F.n}))});const k=(F.source||F.n)+"|預埋螺絲(鋼骨)";if(!IMG.CAT["預埋螺絲"])IMG.CAT["預埋螺絲"]=IMG.ITEM[k]||IMG.CAT[F.n];}}}
   {const oi=out.findIndex(c=>c.n==="其他螺絲"),T=out.find(c=>c.n==="六角螺絲、華司、螺帽");if(oi>=0&&T){const O=out[oi];T.items=[...T.items,...O.items.map(x=>({...x,src:x.src||O.source||O.n}))];out.splice(oi,1);}}
-  {const C=out.find(c=>c.n==="六角螺絲、華司、螺帽");if(C){const rk=n=>/彈簧華司/.test(n)?2:/華司/.test(n)?1:/螺帽|螺母/.test(n)?3:/螺絲/.test(n)?0:4;const sp=n=>/彈簧華司/.test(n)?(/不銹鋼/.test(n)?1:0):0;C.items=C.items.map((x,i)=>({x,i})).sort((p,q)=>rk(p.x.it.n)-rk(q.x.it.n)||sp(p.x.it.n)-sp(q.x.it.n)||p.i-q.i).map(z=>z.x);}}
+  {const C=out.find(c=>c.n==="六角螺絲、華司、螺帽");if(C){const rk=n=>/彈簧華司/.test(n)?2:/華司.*螺絲/.test(n)?0:/華司/.test(n)?1:/螺帽|螺母/.test(n)?3:/螺絲/.test(n)?0:4;const sp=n=>/彈簧華司/.test(n)?(/不銹鋼/.test(n)?1:0):0;C.items=C.items.map((x,i)=>({x,i})).sort((p,q)=>rk(p.x.it.n)-rk(q.x.it.n)||sp(p.x.it.n)-sp(q.x.it.n)||p.i-q.i).map(z=>z.x);}}
   menuCatalog.length=0;menuCatalog.push(...out);
 })();
 // 選單隱藏與排序 BEGIN
