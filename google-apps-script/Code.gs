@@ -652,3 +652,8 @@ function pplEdit_(e, sh) {
     sh.getRange(r, 5).setValue(stamp_());
   }
 }
+
+// 建立／補齊「工地資料」「收貨人」分頁（可在編輯器直接執行）
+function setupSites() {
+  siteSheets_(book_());
+}
