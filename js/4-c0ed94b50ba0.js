@@ -659,7 +659,7 @@ function lineAmt(l){return isNum(l.price)?l.price*l.qty:0}
 function updateCart(){
   const d=draft();const n=d.lines.length;const t=d.lines.reduce((a,l)=>a+(isNum(l.list)?l.list*l.qty:0),0);
   $("#cbN").textContent=n;
-  $("#cartbar").hidden=!(n&&view==="menu");
+  $("#cartbar").hidden=!(n&&view==="menu")||DESK;deskOrder();
   const tn=$("#tabN");tn.hidden=!n;tn.textContent=n;
 }
 $("#cbGo").onclick=()=>go("order");
@@ -1137,8 +1137,12 @@ window.__exportTest=exportXlsx;window.__state=()=>S;
 let view="menu";
 function go(v){view=v;document.querySelectorAll(".tab").forEach(t=>t.classList.toggle("on",t.dataset.v===v));renderView();window.scrollTo({top:0})}
 document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>go(t.dataset.v));
-function renderView(){$("#vMenu").hidden=view!=="menu";$("#vOrder").hidden=view!=="order";$("#vHist").hidden=view!=="hist";$("#vSum").hidden=view!=="sum";
-  if(view==="menu")renderMenu();if(view==="order")renderOrder();if(view==="hist")renderHist();if(view==="sum")renderSum();updateCart()}
+// 電腦版（desktop.html 內嵌、畫面夠寬）：點料和叫料單左右並排
+const DESK=/[?&]embed=1/.test(location.search)&&window.innerWidth>=900;if(DESK)document.body.classList.add("desk");
+function renderView(){if(DESK&&view==="order")view="menu";const both=DESK&&view==="menu";$("#vMenu").hidden=view!=="menu";$("#vOrder").hidden=!(view==="order"||both);$("#vHist").hidden=view!=="hist";$("#vSum").hidden=view!=="sum";
+  if(DESK)document.querySelectorAll(".tab").forEach(t=>t.classList.toggle("on",t.dataset.v===view||(both&&t.dataset.v==="order")));
+  if(view==="menu")renderMenu();if(view==="order"||both)renderOrder();if(view==="hist")renderHist();if(view==="sum")renderSum();updateCart()}
+let deskT=0;function deskOrder(){if(!DESK||view!=="menu")return;clearTimeout(deskT);deskT=setTimeout(()=>{const o=$("#vOrder");if(o&&!o.contains(document.activeElement))renderOrder()},60)}
 function renderAll(){renderProj();renderView()}
 // 雲端同步拿回管理員修改後，重新讀取資料並更新畫面（js/6-sync.js 呼叫）
 window.jiaoliaoAppReload=()=>{const n=load();if(n&&n.projects){S=n;if(!S.projects.find(p=>p.id===S.cur))S.cur=S.projects[0].id;renderAll()}};
