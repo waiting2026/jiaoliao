@@ -318,19 +318,20 @@ button:focus-visible,summary:focus-visible,input:focus-visible,select:focus-visi
 (function(){
   if(window.top!==window)return;
   function cfg(){try{return JSON.parse(localStorage.getItem("jiaoliao_sync_cfg")||"{}")}catch(e){return{}}}
-  function admin(){var c=cfg();return !!(c.who&&c.code&&!c.locked&&c.role==="admin")}
+  function admin(){var c=cfg();var act=+localStorage.getItem("jiaoliao_last_act")||0;return !!(c.who&&c.code&&!c.locked&&c.role==="admin"&&Date.now()-act<5*60*1000)}
   function wide(){return window.innerWidth>=1100&&!/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)}
   function stay(){try{return sessionStorage.getItem("jl_mobile")==="1"}catch(e){return false}}
   var btn=null;
   function tick(){
     var ok=admin()&&!/[?&]m=1/.test(location.search);
     var gate=document.getElementById("loginGate");
-    var gateOpen=gate&&gate.offsetParent!==null;
+    var gateOpen=!!gate||document.documentElement.classList.contains("lg-pre");
     if(ok&&wide()&&!stay()&&!gateOpen){location.replace("desktop.html");return}
     if(ok&&wide()&&!btn){btn=document.createElement("button");btn.type="button";btn.textContent="💻 電腦版";btn.style.cssText="position:fixed;left:12px;bottom:12px;z-index:999;border:1px solid #cfd8e3;background:#fff;color:#2f4059;border-radius:99px;padding:6px 14px;font:inherit;font-size:14px;box-shadow:0 2px 8px #0002;cursor:pointer";btn.onclick=function(){try{sessionStorage.removeItem("jl_mobile")}catch(e){}location.href="desktop.html"};document.body.appendChild(btn)}
     if(btn&&!(ok&&wide())){btn.remove();btn=null}
   }
-  tick();setInterval(tick,1500);
+  function go(){tick();setInterval(tick,1500)}
+  if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",function(){setTimeout(go,300)});else setTimeout(go,300);
 })();
 </script>
 </body>
