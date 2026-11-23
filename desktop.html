@@ -129,7 +129,7 @@ touch();
 
 // ---------- 狀態 ----------
 var S={page:"home",orders:[],deleted:[],sites:[],users:null,tables:{},filt:{site:"",who:"",month:"",q:"",tab:"list"},siteTab:"list",vTab:"常用廠商名單",vq:"",vcat:"全部",vDel:false,dlg:null};
-var NAV=[["工地管理",[["home","首頁儀表板"],["jl","叫料管理"],["newjl","進料管理（手動叫料）"],["ship","出貨核對",1],["cmp","比價下單",1],["bill","帳單核對",1],["price","價目表",1]]],
+var NAV=[["工地管理",[["home","首頁儀表板"],["jl","進料管理"],["newjl","手動叫料"],["ship","出貨核對",1],["cmp","比價下單",1],["bill","帳單核對",1],["price","價目表",1]]],
  ["基本資料",[["sites","工地資料（收貨人）"],["vendor","廠商資料"]]],
  ["系統",[["user","使用者管理"],["phone","切換到手機版"]]]];
 var now=new Date();
@@ -211,7 +211,7 @@ function todo(){
   return '<div class="tw"><table><tr><th>交貨日</th><th>工地</th><th>單號</th><th class="n">品項</th><th>叫料人</th></tr>'+list.map(function(x){var d=oDue(x);var t=d<TODAY?'<span class="st s-wait">'+d.slice(5)+' 已過</span>':d===TODAY?'<span class="st s-go">今天</span>':d.slice(5);return '<tr class="click" data-open="'+esc(x.id)+'"><td>'+t+'</td><td>'+esc(O(x).site)+'</td><td>'+esc(O(x).no)+'</td><td class="n">'+lines(x).length+'</td><td>'+esc(x.who)+'</td></tr>'}).join("")+'</table></div>';
 }
 
-// ---------- 叫料管理 ----------
+// ---------- 進料管理（全部叫料單） ----------
 function filtered(){
   var f=S.filt;return S.orders.filter(function(x){var o=O(x);return (!f.site||o.site===f.site)&&(!f.who||x.who===f.who)&&(!f.month||oDate(x).slice(0,7)===f.month)&&(!f.q||JSON.stringify([o.no,o.site,o.contact,o.note,x.who,lines(x).map(function(l){return l.name+l.size})]).indexOf(f.q)>=0)});
 }
@@ -224,7 +224,7 @@ function pJL(){
   var f=S.filt,list=filtered();
   var sites=S.orders.map(function(x){return O(x).site}).filter(uniq).sort(),whos=S.orders.map(function(x){return x.who}).filter(uniq).sort(),months=S.orders.map(function(x){return oDate(x).slice(0,7)}).filter(uniq).sort().reverse();
   var sel=function(id,cur,opts,all){return '<select class="in" id="'+id+'" aria-label="'+all+'"><option value="">'+all+'</option>'+opts.map(function(v){return '<option '+(v===cur?"selected":"")+'>'+esc(v)+'</option>'}).join("")+'</select>'};
-  return hero("叫料管理","全部叫料單",["共 "+S.orders.length+" 張","目前篩選 "+list.length+" 張","資料來源：試算表「訂單」「明細」"])+'<div class="content"><div class="panel">'+
+  return hero("進料管理","全部叫料單",["共 "+S.orders.length+" 張","目前篩選 "+list.length+" 張","資料來源：試算表「訂單」「明細」"])+'<div class="content"><div class="panel">'+
   '<div class="f"><input class="in grow" id="fq" value="'+esc(f.q)+'" placeholder="搜尋單號、品名、收貨人、備註…" aria-label="搜尋叫料單">'+sel("fsite",f.site,sites,"全部工地")+sel("fwho",f.who,whos,"全部叫料人")+sel("fmonth",f.month,months,"全部月份")+
   '<div class="r"><button type="button" class="btn" id="csv">⬇ 匯出 Excel（CSV）</button></div></div>'+orderTable(list)+'</div></div>';
 }
@@ -241,7 +241,7 @@ function orderDlg(x){
 
 // ---------- 手動叫料：直接用手機版全部功能 ----------
 function pNew(){
-  return hero("進料管理","手動叫料",["左邊點料、右邊叫料單","上面可以換工地；⚙ 裡有工地、設定、備份","存檔後同步到試算表"])+'<div class="content" style="padding-top:14px"><div class="panel"><iframe class="frame" src="index.html?embed=1" title="叫料小幫手"></iframe></div></div>';
+  return hero("工地管理","手動叫料",["左：叫料單資料　中：點料　右：叫料單","上面可以換工地；⚙ 裡有工地、設定、備份","存檔後同步到試算表"])+'<div class="content" style="padding-top:14px"><div class="panel"><iframe class="frame" src="index.html?embed=1" title="叫料小幫手"></iframe></div></div>';
 }
 
 // ---------- 工地資料 ----------

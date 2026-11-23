@@ -1142,7 +1142,12 @@ const DESK=/[?&]embed=1/.test(location.search)&&window.innerWidth>=900;if(DESK)d
 function renderView(){if(DESK&&view==="order")view="menu";const both=DESK&&view==="menu";$("#vMenu").hidden=view!=="menu";$("#vOrder").hidden=!(view==="order"||both);$("#vHist").hidden=view!=="hist";$("#vSum").hidden=view!=="sum";
   if(DESK)document.querySelectorAll(".tab").forEach(t=>t.classList.toggle("on",t.dataset.v===view||(both&&t.dataset.v==="order")));
   if(view==="menu")renderMenu();if(view==="order"||both)renderOrder();if(view==="hist")renderHist();if(view==="sum")renderSum();updateCart()}
-let deskT=0;function deskOrder(){if(!DESK||view!=="menu")return;clearTimeout(deskT);deskT=setTimeout(()=>{const o=$("#vOrder");if(o&&!o.contains(document.activeElement))renderOrder()},60)}
+let deskT=0;function deskOrder(){if(!DESK||view!=="menu")return;clearTimeout(deskT);deskT=setTimeout(()=>{const o=$("#vOrder"),a=document.activeElement;if(o&&!(o.contains(a)&&!$("#vMenu").contains(a)))renderOrder()},60)}
+// 電腦版三欄：叫料單資料｜點料｜叫料單（點料區暫時放進 #vOrder 中間，事件不往上傳）
+if(DESK){const _ro=renderOrder;const m0=$("#vMenu");["click","input","change"].forEach(k=>m0.addEventListener(k,e=>e.stopPropagation()));
+  renderOrder=function(){const v=$("#vOrder"),m=$("#vMenu");if(v.contains(m))v.before(m);_ro();if(view!=="menu")return;
+    const k=[...v.children],L=document.createElement("div"),R=document.createElement("div");L.className="dk-l";R.className="dk-r";
+    k.forEach((c,i)=>(i===0||c.classList.contains("vend")?L:R).appendChild(c));v.append(L,m,R)}}
 function renderAll(){renderProj();renderView()}
 // 雲端同步拿回管理員修改後，重新讀取資料並更新畫面（js/6-sync.js 呼叫）
 window.jiaoliaoAppReload=()=>{const n=load();if(n&&n.projects){S=n;if(!S.projects.find(p=>p.id===S.cur))S.cur=S.projects[0].id;renderAll()}};
