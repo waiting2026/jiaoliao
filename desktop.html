@@ -326,15 +326,20 @@ function loadImg(fid){S.img=S.img||{};if(S.img[fid]||S.img["_"+fid])return;S.img
   api({action:"shipImg",id:S.shipSel,fileId:fid}).then(function(j){if(j.ok){S.img[fid]="data:"+j.mime+";base64,"+j.data;if(S.page==="ship")shipRefresh()}})}
 function shipRefresh(){var y=scrollY;render();scrollTo(0,y)}
 function normT(s){return String(s||"").replace(/[！-～]/g,function(c){return String.fromCharCode(c.charCodeAt(0)-0xFEE0)}).replace(/[″”〃]/g,'"').replace(/[′’]/g,"'").replace(/\s+/g,"").toLowerCase()}
-// 用照片讀到的文字找每個品項的到貨數量：同一行要有品名（或品名前兩個字＋尺寸），再取這行剩下的數字
+// 用照片讀到的文字找每個品項的到貨數量。Google 讀表格常把每一格拆成一行，所以從品名那行往下找，直到下一個品項為止；優先取「數字＋單位」（例如 45支）。
 function ocrMatch(x,text){
-  var tl=String(text||"").split(/\n/).map(normT).filter(Boolean),out={};
-  lines(x).forEach(function(l,i){var nm=normT(l.name),sz=normT(l.size),best=null,bs=0;
-    tl.forEach(function(t){var s=0;if(nm&&t.indexOf(nm)>=0)s+=3;else if(nm.length>=2&&t.indexOf(nm.slice(0,2))>=0)s+=1;if(sz&&t.indexOf(sz)>=0)s+=2;if(s>bs){bs=s;best=t}});
-    if(!best||bs<3)return;
-    var rest=nm?best.split(nm).join(" "):best;if(sz)rest=rest.split(sz).join(" ");
+  var tl=String(text||"").split(/\n/).map(normT).filter(Boolean),out={},ls=lines(x);
+  var nameAt=function(l,t){var nm=normT(l.name),sz=normT(l.size),s=0;if(nm&&t.indexOf(nm)>=0)s+=3;else if(nm.length>=2&&t.indexOf(nm.slice(0,2))>=0)s+=1;if(s&&sz&&t.indexOf(sz)>=0)s+=2;return s};
+  var starts=ls.map(function(l){var bi=-1,bs=0;tl.forEach(function(t,i){var s=nameAt(l,t);if(s>bs){bs=s;bi=i}});return bs>=1?bi:-1});
+  ls.forEach(function(l,i){var st=starts[i];if(st<0)return;var nm=normT(l.name),sz=normT(l.size),u=normT(l.unit||"");
+    var seg=[],ok=nameAt(l,tl[st]);
+    for(var j=st;j<tl.length&&j<st+6;j++){if(j>st&&starts.indexOf(j)>=0)break;if(j>st&&ls.some(function(o,k){return k!==i&&normT(o.name)&&tl[j].indexOf(normT(o.name))>=0}))break;seg.push(tl[j]);if(j>st&&sz&&tl[j].indexOf(sz)>=0)ok+=2}
+    if(ok<3)return;
+    var rest=seg.join(" ");if(nm)rest=rest.split(nm).join(" ");if(sz)rest=rest.split(sz).join(" ");
+    var w=+l.qty||0,m=u&&rest.match(new RegExp("(\\d+(?:\\.\\d+)?)"+u.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")));
+    if(m){out[lkey(l,i)]=+m[1];return}
     var nums=(rest.match(/\d+(\.\d+)?/g)||[]).map(Number);if(!nums.length)return;
-    var w=+l.qty||0;out[lkey(l,i)]=nums.indexOf(w)>=0?w:nums[nums.length-1]});
+    out[lkey(l,i)]=nums.indexOf(w)>=0?w:nums[nums.length-1]});
   return out;
 }
 function applyOcr(x,d,text){var m=ocrMatch(x,text),n=0;Object.keys(m).forEach(function(k){if(d.recv[k]===undefined||d.recv[k]===""||d.sug[k]){d.recv[k]=m[k];d.sug[k]=1;n++}});d.dirty=d.dirty||n>0;

@@ -773,7 +773,7 @@ function shipOcr_(blob) {
   var meta = JSON.stringify({ name: "ocr_tmp_" + Date.now(), mimeType: "application/vnd.google-apps.document" });
   var payload = Utilities.newBlob("--" + bd + "\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n" + meta + "\r\n--" + bd + "\r\nContent-Type: " + blob.getContentType() + "\r\n\r\n").getBytes()
     .concat(blob.getBytes()).concat(Utilities.newBlob("\r\n--" + bd + "--").getBytes());
-  var res = UrlFetchApp.fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&ocrLanguage=zh-TW", {
+  var res = UrlFetchApp.fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart", {
     method: "post", contentType: "multipart/related; boundary=" + bd, payload: payload, headers: { Authorization: "Bearer " + tok }, muteHttpExceptions: true });
   var doc = JSON.parse(res.getContentText());
   if (!doc.id) return "";
