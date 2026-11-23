@@ -129,7 +129,7 @@ touch();
 
 // ---------- 狀態 ----------
 var S={page:"home",orders:[],deleted:[],sites:[],users:null,tables:{},filt:{site:"",who:"",month:"",q:"",tab:"list"},siteTab:"list",vTab:"常用廠商名單",vq:"",vcat:"全部",vDel:false,dlg:null};
-var NAV=[["工地管理",[["home","首頁儀表板"],["jl","進料管理"],["newjl","手動叫料"],["ship","出貨核對",1],["cmp","比價下單",1],["bill","帳單核對",1],["price","價目表",1]]],
+var NAV=[["工地管理",[["home","首頁儀表板"],["jl","進料管理"],["newjl","手動叫料"],["hist","叫料紀錄"],["sum","叫料統計"],["ship","出貨核對",1],["cmp","比價下單",1],["bill","帳單核對",1],["price","價目表",1]]],
  ["基本資料",[["sites","工地資料（收貨人）"],["vendor","廠商資料"]]],
  ["系統",[["user","使用者管理"],["phone","切換到手機版"]]]];
 var now=new Date();
@@ -244,6 +244,12 @@ function pNew(){
   return '<div class="hero"><div class="eb">工地管理</div><div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap"><h1>手動叫料</h1><label style="display:flex;align-items:center;gap:8px;font-weight:600;white-space:nowrap">工地<select class="in" id="njSite" aria-label="工地" style="min-width:220px"><option>讀取中…</option></select></label></div><div class="pills"><span>左：叫料單資料　中：點料　右：叫料單</span><span>存檔後同步到試算表</span><span>工地、收貨人請到「工地資料」修改</span></div></div>'+
     '<div class="content" style="padding-top:14px"><div class="panel"><iframe class="frame" id="njFrame" src="index.html?embed=1" title="叫料小幫手"></iframe></div></div>';
 }
+// 叫料紀錄、叫料統計：和手機版「紀錄」「統計」同一份資料
+function siteHero(t,pills){return '<div class="hero"><div class="eb">工地管理</div><div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap"><h1>'+esc(t)+'</h1><label style="display:flex;align-items:center;gap:8px;font-weight:600;white-space:nowrap">工地<select class="in" id="njSite" aria-label="工地" style="min-width:220px"><option>讀取中…</option></select></label></div><div class="pills">'+pills.map(function(p){return "<span>"+esc(p)+"</span>"}).join("")+'</div></div>'}
+function pHist(){return siteHero("叫料紀錄",["和手機版「紀錄」同一份","按「開啟」或「複製」會跳到手動叫料繼續編輯","可匯出當月總表"])+'<div class="content" style="padding-top:14px"><div class="panel"><iframe class="frame" id="njFrame" src="index.html?embed=1&view=hist" title="叫料紀錄"></iframe></div></div>'}
+function pSum(){return siteHero("叫料統計",["和手機版「統計」同一份","依工地、月份看叫了多少料"])+'<div class="content" style="padding-top:14px"><div class="panel"><iframe class="frame" id="njFrame" src="index.html?embed=1&view=sum" title="叫料統計"></iframe></div></div>'}
+// 內嵌頁要回到手動叫料時呼叫
+window.deskGo=function(p){S.page=p;render();scrollTo(0,0)};
 // 手動叫料上方的工地下拉：跟內嵌的叫料小幫手 #proj 同步
 setInterval(function(){
   var sel=document.getElementById("njSite"),fr=document.getElementById("njFrame");if(!sel||!fr)return;
@@ -301,7 +307,7 @@ function pUser(){
 var SOON={ship:["出貨核對","收貨時拍出貨單，照片存到 Google 雲端硬碟（依工地、月份分資料夾），系統比對叫料數量，少送、多送會列進待辦。"],cmp:["比價下單","採購把叫料單送給廠商比價，參考「案場採購紀錄」的合約廠商和折數，選定後下單。"],bill:["帳單核對","把廠商月結帳單和出貨單、下單價格對帳，算出各廠商本月計價金額和出錯率，顯示在首頁。"],price:["價目表","整理所有廠商報價單、牌價、折數，查某個品項各家價格。"]};
 function pSoon(){var s=SOON[S.page]||["建置中",""];return hero("下一階段",s[0],[])+'<div class="content"><div class="panel"><div class="note" style="margin:18px"><b>這一頁還在做。</b><br>'+esc(s[1])+'</div></div></div>'}
 
-var PAGES={home:pHome,jl:pJL,newjl:pNew,sites:pSites,vendor:pVendor,user:pUser};
+var PAGES={home:pHome,jl:pJL,newjl:pNew,hist:pHist,sum:pSum,sites:pSites,vendor:pVendor,user:pUser};
 
 // ---------- 對話框 ----------
 function field(id,label,val,extra){return '<label>'+esc(label)+'<input class="in" id="'+id+'" value="'+esc(val)+'" '+(extra||"")+'></label>'}

@@ -1139,7 +1139,9 @@ function go(v){view=v;document.querySelectorAll(".tab").forEach(t=>t.classList.t
 document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>go(t.dataset.v));
 // 電腦版（desktop.html 內嵌、畫面夠寬）：點料和叫料單左右並排
 const DESK=/[?&]embed=1/.test(location.search)&&window.innerWidth>=900;if(DESK)document.body.classList.add("desk");
-function renderView(){if(DESK&&view==="order")view="menu";const both=DESK&&view==="menu";$("#vMenu").hidden=view!=="menu";$("#vOrder").hidden=!(view==="order"||both);$("#vHist").hidden=view!=="hist";$("#vSum").hidden=view!=="sum";
+// 電腦版的「叫料紀錄」「叫料統計」頁：一開始就顯示紀錄或統計；要編輯單子時跳回電腦版的「手動叫料」
+const DESKV=DESK&&((location.search.match(/[?&]view=(hist|sum)/)||[])[1]||"");if(DESKV)view=DESKV;
+function renderView(){if(DESKV&&(view==="order"||view==="menu")){view=DESKV;try{persist()}catch(e){}if(parent!==window&&parent.deskGo){parent.deskGo("newjl");return}}if(DESK&&view==="order")view="menu";const both=DESK&&view==="menu";$("#vMenu").hidden=view!=="menu";$("#vOrder").hidden=!(view==="order"||both);$("#vHist").hidden=view!=="hist";$("#vSum").hidden=view!=="sum";
   if(DESK)document.querySelectorAll(".tab").forEach(t=>t.classList.toggle("on",t.dataset.v===view||(both&&t.dataset.v==="order")));
   if(view==="menu")renderMenu();if(view==="order"||both)renderOrder();if(view==="hist")renderHist();if(view==="sum")renderSum();updateCart()}
 let deskT=0;function deskOrder(){if(!DESK||view!=="menu")return;clearTimeout(deskT);deskT=setTimeout(()=>{const o=$("#vOrder"),a=document.activeElement;if(o&&!(o.contains(a)&&!$("#vMenu").contains(a)))renderOrder()},60)}
