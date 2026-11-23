@@ -319,12 +319,9 @@ function manageUsers_(body, me) {
   };
 }
 
-// 帳號＝姓名，密碼＝試算表 B 欄；連續輸入錯誤太多次會暫時鎖住
+// 帳號＝姓名，密碼＝試算表 B 欄（使用者 2026-11-23 要求：取消「密碼錯太多次鎖 10 分鐘」）
 function checkUser_(name, pw) {
   if (!name || !String(pw || "").trim()) return { ok: false, error: "請輸入姓名與密碼" };
-  var cache = CacheService.getScriptCache();
-  var ck = "fail:" + name;
-  if (Number(cache.get(ck) || 0) >= 8) return { ok: false, error: "密碼錯誤次數過多，請 10 分鐘後再試" };
   var sh = book_().getSheetByName(SH_USER);
   if (sh && sh.getLastRow() > 1) {
     var rows = sh.getRange(2, 1, sh.getLastRow() - 1, Math.max(3, Math.min(4, sh.getLastColumn()))).getValues();
@@ -335,7 +332,6 @@ function checkUser_(name, pw) {
       }
     }
   }
-  cache.put(ck, String(Number(cache.get(ck) || 0) + 1), 600);
   return { ok: false, error: "姓名或密碼不正確" };
 }
 
