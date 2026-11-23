@@ -9,6 +9,7 @@
 /* 電腦版內嵌：點料（左）＋叫料單（右） */
 body.desk .wrap,body.desk .bar-in{max-width:none}
 body.desk .wrap{display:block;padding-bottom:40px}
+body.desk header.bar{display:none}
 body.desk .wrap>nav.tabs,body.desk .wrap>.foot,body.desk #vHist,body.desk #vSum{grid-column:1/-1}
 body.desk #vOrder:not([hidden]){display:grid;grid-template-columns:320px minmax(0,1fr) 320px;gap:16px;align-items:start}
 body.desk .dk-l,body.desk .dk-r{position:sticky;top:8px;max-height:calc(100vh - 16px);overflow:auto;background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:4px 12px 12px}

@@ -241,8 +241,17 @@ function orderDlg(x){
 
 // ---------- 手動叫料：直接用手機版全部功能 ----------
 function pNew(){
-  return hero("工地管理","手動叫料",["左：叫料單資料　中：點料　右：叫料單","上面可以換工地；⚙ 裡有工地、設定、備份","存檔後同步到試算表"])+'<div class="content" style="padding-top:14px"><div class="panel"><iframe class="frame" src="index.html?embed=1" title="叫料小幫手"></iframe></div></div>';
+  return '<div class="hero"><div class="eb">工地管理</div><div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap"><h1>手動叫料</h1><label style="display:flex;align-items:center;gap:8px;font-weight:600;white-space:nowrap">工地<select class="in" id="njSite" aria-label="工地" style="min-width:220px"><option>讀取中…</option></select></label></div><div class="pills"><span>左：叫料單資料　中：點料　右：叫料單</span><span>存檔後同步到試算表</span><span>工地、收貨人請到「工地資料」修改</span></div></div>'+
+    '<div class="content" style="padding-top:14px"><div class="panel"><iframe class="frame" id="njFrame" src="index.html?embed=1" title="叫料小幫手"></iframe></div></div>';
 }
+// 手動叫料上方的工地下拉：跟內嵌的叫料小幫手 #proj 同步
+setInterval(function(){
+  var sel=document.getElementById("njSite"),fr=document.getElementById("njFrame");if(!sel||!fr)return;
+  var p;try{p=fr.contentDocument&&fr.contentDocument.getElementById("proj")}catch(e){return}if(!p)return;
+  var h=p.innerHTML;if(sel.getAttribute("data-h")!==h){sel.innerHTML=h;sel.setAttribute("data-h",h)}
+  if(document.activeElement!==sel&&sel.value!==p.value)sel.value=p.value;
+  if(!sel.onchange)sel.onchange=function(){var q=fr.contentDocument.getElementById("proj");q.value=sel.value;q.dispatchEvent(new Event("change",{bubbles:true}))};
+},500);
 
 // ---------- 工地資料 ----------
 function pSites(){
