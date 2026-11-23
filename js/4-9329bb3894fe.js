@@ -243,7 +243,7 @@ const supplierItems=[["內迫式短壁虎",{"n":"內迫式短壁虎 DR3030（新
     else if(g==="牙件"||g==="壓接另件"||g==="焊件"){if(!order.includes("牙件"))order.push("牙件","焊件","壓接另件");}
     else if(!order.includes(g))order.push(g);
   });
-  const mv=(g,after)=>{const i=order.indexOf(g);if(i<0||!order.includes(after))return;order.splice(i,1);order.splice(order.indexOf(after)+1,0,g)};mv("ACI","軟管・防震接頭");mv("H型鋼","CIP管");mv("五金另料","法蘭・墊片");
+  const mv=(g,after)=>{const i=order.indexOf(g);if(i<0||!order.includes(after))return;order.splice(i,1);order.splice(order.indexOf(after)+1,0,g)};mv("ACI","軟管・防震接頭");mv("H型鋼","CIP管");mv("炎昇專區","塑膠另件");mv("五金另料","法蘭・墊片");
   out.sort((a,b)=>order.indexOf(a.g||"其他")-order.indexOf(b.g||"其他"));
   {const A=out.find(c=>c.n==="PVC另件・灰色・配件"),G=out.find(c=>c.n==="PVC另件・灰色厚");if(A&&G){const m=A.items.filter(x=>x.it.n==="樓板接頭");A.items=A.items.filter(x=>x.it.n!=="樓板接頭");G.items=[...G.items,...m];}}
   {const f=out.filter(c=>c.gg19);if(f.length){const r=out.filter(c=>!c.gg19);const k=r.findIndex(c=>c.g===f[0].g);r.splice(k<0?r.length:k,0,...f);out.length=0;out.push(...r);}}
