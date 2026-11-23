@@ -318,7 +318,7 @@ button:focus-visible,summary:focus-visible,input:focus-visible,select:focus-visi
 (function(){
   if(window.top!==window)return;
   function cfg(){try{return JSON.parse(localStorage.getItem("jiaoliao_sync_cfg")||"{}")}catch(e){return{}}}
-  function admin(){var c=cfg();return !!(c.who&&c.code&&!c.locked&&(c.role==="admin"||["李羿萱","周佳珍","蔡鴻基"].indexOf(c.who)>=0))}
+  function admin(){var c=cfg();return !!(c.who&&c.code&&!c.locked&&c.role==="admin")}
   function wide(){return window.innerWidth>=1100&&!/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)}
   function stay(){try{return sessionStorage.getItem("jl_mobile")==="1"}catch(e){return false}}
   var btn=null;
