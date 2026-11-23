@@ -71,7 +71,7 @@
       '<label class="lg-show"><input type="checkbox" id="lgShow"> 顯示密碼</label>'+
       '<button class="lg-go" type="submit">登入</button>'+
       '<p class="lg-msg">'+esc(msg||"")+'</p>'+
-      '<p class="lg-tip">第一次登入需要連上網路。<br>忘記密碼請找管理員 '+esc(ADMINS.join("、"))+'。</p>'+
+      '<p class="lg-tip">第一次登入需要連上網路。<br>忘記密碼請找管理員 李羿萱。</p>'+
       '</form>';
     document.body.appendChild(gate);
     document.body.classList.add("lg-locked");
