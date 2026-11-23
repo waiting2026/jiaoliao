@@ -293,8 +293,8 @@ button:focus-visible,summary:focus-visible,input:focus-visible,select:focus-visi
 <script src="js/4-9329bb3894fe.js"></script>
 <script src="js/5-206f23bb2e52.js"></script>
 <script src="js/6-a11833abf802.js"></script>
-<script src="js/7-92128e0be206.js"></script>
-<script src="js/8-34943ba53205.js"></script>
+<script src="js/7-8c92e2d9e466.js"></script>
+<script src="js/8-755ed7aef283.js"></script>
 <script>
 (function(){
   var el=document.getElementById("offState");
@@ -311,6 +311,26 @@ button:focus-visible,summary:focus-visible,input:focus-visible,select:focus-visi
       }).catch(function(){});
     });
   }
+})();
+</script>
+<script>
+// 電腦版入口：管理員用電腦（螢幕寬）開，自動進電腦版；按過「切換到手機版」就留在手機版。助理一律留在手機版。
+(function(){
+  if(window.top!==window)return;
+  function cfg(){try{return JSON.parse(localStorage.getItem("jiaoliao_sync_cfg")||"{}")}catch(e){return{}}}
+  function admin(){var c=cfg();return !!(c.who&&c.code&&!c.locked&&(c.role==="admin"||["李羿萱","周佳珍","蔡鴻基"].indexOf(c.who)>=0))}
+  function wide(){return window.innerWidth>=1100&&!/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)}
+  function stay(){try{return sessionStorage.getItem("jl_mobile")==="1"}catch(e){return false}}
+  var btn=null;
+  function tick(){
+    var ok=admin()&&!/[?&]m=1/.test(location.search);
+    var gate=document.getElementById("loginGate");
+    var gateOpen=gate&&gate.offsetParent!==null;
+    if(ok&&wide()&&!stay()&&!gateOpen){location.replace("desktop.html");return}
+    if(ok&&wide()&&!btn){btn=document.createElement("button");btn.type="button";btn.textContent="💻 電腦版";btn.style.cssText="position:fixed;left:12px;bottom:12px;z-index:999;border:1px solid #cfd8e3;background:#fff;color:#2f4059;border-radius:99px;padding:6px 14px;font:inherit;font-size:14px;box-shadow:0 2px 8px #0002;cursor:pointer";btn.onclick=function(){try{sessionStorage.removeItem("jl_mobile")}catch(e){}location.href="desktop.html"};document.body.appendChild(btn)}
+    if(btn&&!(ok&&wide())){btn.remove();btn=null}
+  }
+  tick();setInterval(tick,1500);
 })();
 </script>
 </body>

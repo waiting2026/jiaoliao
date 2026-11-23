@@ -1,0 +1,392 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>工程叫料小幫手・電腦版</title>
+<link rel="icon" href="app-icon-192.png">
+<style>
+/* 電腦版管理介面：網頁本身不放任何資料，登入後才向後台（Google 試算表）拿，後台會檢查是不是管理員。 */
+:root{--side:#2f4059;--side2:#3c4f6b;--sidetx:#dfe6f0;--navon:#dbe6f5;--navontx:#22385a;--hero1:#e3ecf7;--hero2:#f4f7fb;--herotx:#223a5e;--herob:#d9e3f0;
+ --acc:#5b82b8;--acc2:#3f679e;--accl:#eef3fa;--bg:#f5f7fa;--line:#e6ebf1;--card:#fff;--tx:#3a3f47;--mu:#7d838d;
+ --green:#4f9a6c;--greenl:#eef7f1;--red:#c45a5a;--redl:#fbf0f0;--amber:#b7822f;--amberl:#fbf5ea;
+ --font:"Noto Sans TC","Microsoft JhengHei","PingFang TC",system-ui,sans-serif;color-scheme:light}
+:root[data-theme="鼠尾草"]{--side:#3d4f47;--side2:#4a5e55;--sidetx:#e3ebe6;--navon:#dce9df;--navontx:#2d4a38;--hero1:#e2eee5;--hero2:#f4f8f4;--herotx:#2d4a38;--herob:#d6e6da;--acc:#6f9a7f;--acc2:#4f7d61;--accl:#eef5f0;--bg:#f5f7f4;--line:#e5ebe6}
+:root[data-theme="奶茶杏"]{--side:#4a4440;--side2:#5a524d;--sidetx:#efe8e2;--navon:#f3d9c6;--navontx:#5a3420;--hero1:#fbe6d6;--hero2:#fdf3ea;--herotx:#5a3420;--herob:#f2dccb;--acc:#d98a5f;--acc2:#b0603a;--accl:#fdf3ec;--bg:#f7f4f0;--line:#ece6df}
+:root[data-theme="莫蘭迪紫"]{--side:#4a4458;--side2:#585168;--sidetx:#ebe7f2;--navon:#e6dff2;--navontx:#41355e;--hero1:#ece6f5;--hero2:#f8f5fb;--herotx:#41355e;--herob:#e1d9ee;--acc:#9483bd;--acc2:#6f5e9c;--accl:#f3f0fa;--bg:#f7f6f9;--line:#e9e6ef}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--tx);font-family:var(--font);font-size:14px;line-height:1.6}
+button,input,select,textarea{font:inherit;color:inherit}
+.app{display:grid;grid-template-columns:220px 1fr;min-height:100vh}
+.side{background:var(--side);color:var(--sidetx);display:flex;flex-direction:column;position:sticky;top:0;height:100vh;overflow:auto}
+.logo{padding:20px 18px;border-bottom:1px solid var(--side2)}
+.logo b{display:block;color:#fff;font-size:17px;font-weight:700;line-height:1.3;letter-spacing:.03em}
+.logo small{opacity:.7}
+.grp{padding:14px 18px 4px;font-size:12px;opacity:.65;letter-spacing:.05em}
+.nav{display:flex;flex-direction:column;gap:2px;padding:0 10px}
+.nav button{background:none;border:0;color:var(--sidetx);text-align:left;padding:9px 14px;border-radius:12px;cursor:pointer;display:flex;align-items:center;gap:8px}
+.nav button:hover{background:var(--side2)}
+.nav button.on{background:var(--navon);color:var(--navontx);font-weight:700}
+.nav button:focus-visible{outline:2px solid #fff;outline-offset:1px}
+.nav .soon{margin-left:auto;font-size:10px;opacity:.7;border:1px solid currentColor;border-radius:99px;padding:0 6px}
+.me{margin-top:auto;border-top:1px solid var(--side2);padding:14px 18px;display:flex;gap:10px;align-items:center}
+.me .av{width:34px;height:34px;border-radius:50%;background:var(--navon);color:var(--navontx);display:grid;place-items:center;font-weight:700;flex:none}
+.me b{color:#fff;display:block;line-height:1.2}
+.me button{margin-left:auto;background:none;border:1px solid var(--side2);color:var(--sidetx);border-radius:8px;padding:2px 8px;cursor:pointer;font-size:12px}
+.main{min-width:0;display:flex;flex-direction:column}
+.topbar{background:#fff;border-bottom:1px solid var(--line);padding:10px 24px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.topbar .date{margin-left:auto;color:var(--mu)}
+.th-pick{display:flex;gap:6px;align-items:center;color:var(--mu);font-size:12px}
+.th-pick button{width:20px;height:20px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px #0002;cursor:pointer;padding:0}
+.th-pick button.on{box-shadow:0 0 0 2px var(--tx)}
+.hero{background:linear-gradient(110deg,var(--hero1),var(--hero2));color:var(--herotx);padding:20px 32px;border-bottom:1px solid var(--herob)}
+.hero .eb{font-size:13px;opacity:.75}
+.hero h1{margin:2px 0;font-size:26px;font-weight:700}
+.pills{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+.pills span{background:#ffffffb3;border:1px solid var(--herob);border-radius:99px;padding:1px 10px;font-size:12px}
+.content{padding:22px 26px 48px;display:flex;flex-direction:column;gap:18px}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.stat{background:#fff;border:1px solid var(--line);border-radius:18px;padding:14px 18px;box-shadow:0 2px 10px #1a2a4008}
+.stat .n{font-size:28px;font-weight:700}.stat .n small{font-size:15px}.stat .m{color:var(--mu);font-size:12px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media (max-width:1150px){.two{grid-template-columns:1fr}.stats{grid-template-columns:repeat(2,1fr)}}
+.panel{background:#fff;border:1px solid var(--line);border-radius:18px;box-shadow:0 2px 10px #1a2a4008;min-width:0;display:flex;flex-direction:column;overflow:hidden}
+.panel h3{margin:0;padding:14px 20px;border-bottom:1px solid var(--line);font-size:15px;font-weight:600;display:flex;justify-content:space-between;align-items:center;gap:10px}
+.panel h3 small{color:var(--mu);font-weight:400}
+.f{display:flex;gap:8px;flex-wrap:wrap;padding:12px 18px;align-items:center}
+.f .grow{flex:1;min-width:180px}
+.f .r{margin-left:auto;display:flex;gap:8px}
+input.in,select.in,textarea.in{border:1px solid var(--line);border-radius:10px;padding:6px 10px;background:#fff;width:100%}
+.f input.in,.f select.in{width:auto}
+.f input.in.grow{width:100%}
+.btn{border:1px solid var(--line);background:#fff;border-radius:10px;padding:6px 14px;cursor:pointer;white-space:nowrap}
+.btn:hover{background:var(--accl)}
+.btn.pri{background:var(--acc);border-color:var(--acc);color:#fff;font-weight:700}
+.btn.pri:hover{background:var(--acc2)}
+.btn.sm{padding:2px 10px;font-size:13px}
+.btn.danger{color:var(--red)}
+.btn:disabled{opacity:.5;cursor:default}
+.tabs2{display:flex;gap:4px;padding:0 12px;border-bottom:1px solid var(--line);overflow-x:auto}
+.tabs2 button{background:none;border:0;border-bottom:3px solid transparent;padding:10px 12px;cursor:pointer;white-space:nowrap}
+.tabs2 button.on{border-color:var(--acc);color:var(--acc2);font-weight:700}
+.tabs2 .c{border-radius:99px;padding:0 7px;font-size:11px;margin-left:4px;background:#eef1f5}
+.tw{overflow:auto}
+table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
+th,td{padding:10px 14px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{background:#fafbfc;color:var(--mu);font-weight:500;font-size:12px;white-space:nowrap;position:sticky;top:0}
+td.n,th.n{text-align:right}
+td small{display:block;color:var(--mu);font-size:12px}
+tr.click{cursor:pointer}tr.click:hover td{background:var(--accl)}
+.st{font-size:12px;padding:1px 10px;border-radius:99px;white-space:nowrap;display:inline-block}
+.s-ok{background:var(--greenl);color:var(--green)}.s-bad{background:var(--redl);color:var(--red)}.s-wait{background:var(--amberl);color:var(--amber)}.s-go{background:var(--accl);color:var(--acc2)}
+.note{margin:12px 18px;background:var(--accl);border-radius:14px;padding:10px 14px}
+.warn{margin:12px 18px;background:var(--amberl);border-radius:14px;padding:10px 14px}
+.empty{padding:28px 18px;color:var(--mu);text-align:center}
+.bar-row{display:grid;grid-template-columns:120px 1fr 80px;gap:10px;align-items:center;padding:9px 20px;border-bottom:1px solid var(--line)}
+.track{height:7px;background:#eef1f5;border-radius:99px;overflow:hidden}.track i{display:block;height:100%;border-radius:99px;background:var(--acc)}
+.dlg-bg{position:fixed;inset:0;background:#1a2a4040;z-index:50}
+.dlg{position:fixed;z-index:51;left:50%;top:50%;transform:translate(-50%,-50%);width:min(720px,calc(100vw - 32px));max-height:calc(100vh - 40px);overflow:auto;background:#fff;border-radius:20px;padding:20px;box-shadow:0 20px 60px #1a2a4030}
+.dlg h2{margin:0 0 12px;font-size:19px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.grid2 label,.dlg label{display:block;font-size:13px;color:var(--mu)}
+.grid2 label .in,.dlg label .in{color:var(--tx);font-size:14px;margin-top:2px}
+.actions{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;padding-top:14px}
+.frame{width:100%;height:calc(100vh - 170px);min-height:600px;border:0;background:#fff;display:block}
+.gate{max-width:460px;margin:12vh auto;background:#fff;border-radius:20px;padding:28px;box-shadow:0 10px 40px #1a2a4018;text-align:center}
+.gate h1{font-size:22px;margin:0 0 8px}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#2f4059;color:#fff;padding:10px 18px;border-radius:12px;z-index:60;box-shadow:0 8px 24px #0003}
+.spin{color:var(--mu);padding:40px;text-align:center}
+</style>
+</head>
+<body>
+<div id="root"><div class="spin">載入中…</div></div>
+<script>
+(function(){
+"use strict";
+var CFG_KEY="jiaoliao_sync_cfg",ACT_KEY="jiaoliao_last_act",IDLE_MS=5*60*1000;
+var SYNC_URL="https://script.google.com/macros/s/AKfycbwf1DwO6ARo_ePfa3TT3ZPecLmNnqjksK3sPxcIN-5_Obn3mHSQerYo1rRzQRJyNtM/exec";
+var COMPANIES=["聖和工程有限公司","紘誠水電工程行","澧育有限公司","白鐵工程行"];
+function $(id){return document.getElementById(id)}
+function jget(k,d){try{var s=localStorage.getItem(k);return s?JSON.parse(s):d}catch(e){return d}}
+function jset(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
+function cfg(){var c=jget(CFG_KEY,{});c.url=c.url||SYNC_URL;return c}
+function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(ch){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]})}
+function touch(){try{localStorage.setItem(ACT_KEY,String(Date.now()))}catch(e){}}
+function idle(){return Date.now()-(+localStorage.getItem(ACT_KEY)||0)>IDLE_MS}
+function api(body){var c=cfg();body.who=c.who;body.code=c.code;return fetch(c.url,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(body)}).then(function(r){return r.json()})}
+function toast(t){var d=document.createElement("div");d.className="toast";d.textContent=t;document.body.appendChild(d);setTimeout(function(){d.remove()},2600)}
+function goPhone(){try{sessionStorage.setItem("jl_mobile","1")}catch(e){}location.href="index.html"}
+function gate(title,text,btn){$("root").innerHTML='<div class="gate"><h1>'+esc(title)+'</h1><p>'+esc(text)+'</p><p><button class="btn pri" id="gGo" type="button">'+esc(btn)+'</button></p></div>';$("gGo").onclick=function(){location.href="index.html"}}
+
+// ---------- 登入檢查：沒登入、閒置太久、不是管理員都進不來 ----------
+var C=cfg();
+if(!(C.who&&C.code)||C.locked||idle()){gate("請先登入","電腦版要用叫料小幫手的帳號登入，登入後會自動回到電腦版。","前往登入");return}
+["click","keydown","scroll","mousemove"].forEach(function(ev){addEventListener(ev,function(){if(idle()){location.href="index.html";return}touch()},{passive:true})});
+setInterval(function(){if(idle())location.href="index.html"},30000);
+touch();
+
+// ---------- 狀態 ----------
+var S={page:"home",orders:[],deleted:[],sites:[],users:null,tables:{},filt:{site:"",who:"",month:"",q:"",tab:"list"},siteTab:"list",vTab:"常用廠商名單",vq:"",vcat:"全部",vDel:false,dlg:null};
+var NAV=[["工地管理",[["home","首頁儀表板"],["jl","叫料管理"],["newjl","進料管理（手動叫料）"],["ship","出貨核對",1],["cmp","比價下單",1],["bill","帳單核對",1],["price","價目表",1]]],
+ ["基本資料",[["sites","工地資料（收貨人）"],["vendor","廠商資料"]]],
+ ["系統",[["user","使用者管理"],["phone","切換到手機版"]]]];
+var now=new Date();
+var TODAY=fmtD(now),MONTH=TODAY.slice(0,7);
+function fmtD(d){return d.getFullYear()+"-"+("0"+(d.getMonth()+1)).slice(-2)+"-"+("0"+d.getDate()).slice(-2)}
+function normD(s){s=String(s||"").trim();var m=s.match(/(\d{2,4})\D(\d{1,2})\D(\d{1,2})/);if(!m)return "";var y=+m[1];if(y<1000)y+=1911;return y+"-"+("0"+m[2]).slice(-2)+"-"+("0"+m[3]).slice(-2)}
+function O(x){return x.order||{}}
+function oDate(x){return normD(O(x).orderDate)||""}
+function oDue(x){return normD(O(x).dueDate)||""}
+function lines(x){return O(x).lines||[]}
+
+function load(){
+  return api({action:"login"}).then(function(j){
+    if(!j.ok){gate("登入失效",j.error||"請重新登入","重新登入");throw 0}
+    if(j.role!=="admin"){gate("這裡是管理員專用","你的帳號是助理，請用手機版叫料。","回手機版");throw 0}
+    var c=cfg();c.role="admin";jset(CFG_KEY,c);
+    return api({action:"pull",all:true});
+  }).then(function(j){
+    if(!j.ok)throw new Error(j.error||"讀取失敗");
+    var dead={};(j.deleted||[]).forEach(function(d){dead[d.id]=1});
+    S.orders=(j.orders||[]).filter(function(x){return !dead[x.id]}).sort(function(a,b){return (oDate(b)+(O(b).no||"")).localeCompare(oDate(a)+(O(a).no||""))});
+    S.sites=j.sites||[];
+  });
+}
+
+// ---------- 畫面骨架 ----------
+function shell(){
+  var c=cfg();
+  $("root").innerHTML='<div class="app"><aside class="side"><div class="logo"><b>聖和工程<br>工程叫料小幫手</b><small>電腦版・管理員</small></div>'+
+   NAV.map(function(g){return '<div class="grp">'+g[0]+'</div><div class="nav">'+g[1].map(function(n){return '<button type="button" data-p="'+n[0]+'">'+esc(n[1])+(n[2]?'<span class="soon">下一階段</span>':'')+'</button>'}).join("")+'</div>'}).join("")+
+   '<div class="me"><span class="av">'+esc(String(c.who||"?").slice(0,1))+'</span><div><b>'+esc(c.who)+'</b><small>管理員</small></div><button type="button" id="logout">登出</button></div></aside>'+
+   '<main class="main"><div class="topbar"><button class="btn sm" type="button" id="reload">⟳ 重新整理資料</button><span id="lastLoad" style="color:var(--mu);font-size:12px"></span>'+
+   '<span class="th-pick">配色 '+[["霧藍","#2f4059","#5b82b8"],["鼠尾草","#3d4f47","#6f9a7f"],["奶茶杏","#4a4440","#d98a5f"],["莫蘭迪紫","#4a4458","#9483bd"]].map(function(t){return '<button type="button" data-th="'+t[0]+'" title="'+t[0]+'" aria-label="配色：'+t[0]+'" style="background:linear-gradient(135deg,'+t[1]+' 50%,'+t[2]+' 50%)"></button>'}).join("")+'</span>'+
+   '<span class="date">'+now.getFullYear()+' 年 '+(now.getMonth()+1)+' 月 '+now.getDate()+' 日　星期'+"日一二三四五六"[now.getDay()]+'</span></div><div id="page"></div></main></div><div id="dlgHost"></div>';
+  document.querySelector(".side").addEventListener("click",function(e){var b=e.target.closest("[data-p]");if(!b)return;if(b.dataset.p==="phone"){goPhone();return}S.page=b.dataset.p;render();scrollTo(0,0)});
+  $("logout").onclick=function(){if(!confirm("要登出嗎？"))return;var c=cfg();c.locked=true;jset(CFG_KEY,c);location.href="index.html"};
+  $("reload").onclick=function(){$("page").innerHTML='<div class="spin">重新讀取中…</div>';Promise.all([load(),S.users?loadUsers():null]).then(function(){S.tables={};render();toast("已更新")}).catch(function(e){if(e)toast("讀取失敗："+(e.message||e))})};
+  document.querySelector(".th-pick").addEventListener("click",function(e){var b=e.target.closest("[data-th]");if(b)setTheme(b.dataset.th)});
+  var t="霧藍";try{t=localStorage.getItem("jl_desk_theme")||t}catch(e){}setTheme(t);
+  $("page").addEventListener("click",onClick);$("page").addEventListener("input",onInput);$("page").addEventListener("change",onChange);
+  $("dlgHost").addEventListener("click",onDlgClick);
+}
+function setTheme(k){document.documentElement.dataset.theme=k==="霧藍"?"":k;document.querySelectorAll("[data-th]").forEach(function(b){b.classList.toggle("on",b.dataset.th===k)});try{localStorage.setItem("jl_desk_theme",k)}catch(e){}}
+function hero(eb,title,pills){return '<div class="hero"><div class="eb">'+esc(eb)+'</div><h1>'+esc(title)+'</h1>'+(pills&&pills.length?'<div class="pills">'+pills.map(function(p){return '<span>'+esc(p)+'</span>'}).join("")+'</div>':'')+'</div>'}
+function render(){
+  document.querySelectorAll(".nav [data-p]").forEach(function(b){b.classList.toggle("on",b.dataset.p===S.page)});
+  var f=PAGES[S.page]||pSoon;$("page").innerHTML=f();
+  $("lastLoad").textContent="資料時間 "+new Date().toTimeString().slice(0,5);
+  if(S.page==="vendor"&&!S.tables[S.vTab])loadTable(S.vTab);
+  if(S.page==="user"&&!S.users)loadUsers().then(render);
+  renderDlg();
+}
+
+// ---------- 首頁儀表板 ----------
+function pHome(){
+  var mo=S.orders.filter(function(x){return oDate(x).slice(0,7)===MONTH});
+  var today=S.orders.filter(function(x){return oDate(x)===TODAY});
+  var dueToday=S.orders.filter(function(x){return oDue(x)===TODAY});
+  var soon=S.orders.filter(function(x){var d=oDue(x);return d>TODAY&&d<=fmtD(new Date(Date.now()+3*864e5))});
+  var bySite={};mo.forEach(function(x){var s=O(x).site||"（未填工地）";var b=bySite[s]||(bySite[s]={n:0,items:0,last:""});b.n++;b.items+=lines(x).length;if(oDate(x)>b.last)b.last=oDate(x)});
+  var rows=Object.keys(bySite).map(function(k){return [k,bySite[k]]}).sort(function(a,b){return b[1].n-a[1].n});
+  var max=rows.length?rows[0][1].n:1;
+  var byWho={};mo.forEach(function(x){byWho[x.who]=(byWho[x.who]||0)+1});
+  return hero("首頁儀表板","全部工地總覽",["本月叫料 "+mo.length+" 張","今天叫料 "+today.length+" 張","今天要到貨 "+dueToday.length+" 張"])+'<div class="content">'+
+  '<div class="stats"><div class="stat"><div class="m">本月叫料單</div><div class="n">'+mo.length+'<small> 張</small></div><div class="m">共 '+mo.reduce(function(a,x){return a+lines(x).length},0)+' 個品項</div></div>'+
+  '<div class="stat"><div class="m">今天叫料</div><div class="n">'+today.length+'<small> 張</small></div><div class="m">'+esc(today.map(function(x){return O(x).site}).filter(uniq).join("、")||"—")+'</div></div>'+
+  '<div class="stat"><div class="m">今天交貨</div><div class="n" style="color:var(--acc2)">'+dueToday.length+'<small> 張</small></div><div class="m">3 天內還有 '+soon.length+' 張</div></div>'+
+  '<div class="stat"><div class="m">進行中工地</div><div class="n">'+S.sites.filter(function(s){return !s.off}).length+'<small> 個</small></div><div class="m">本月有叫料 '+rows.length+' 個</div></div></div>'+
+  '<div class="two"><div class="panel"><h3>各工地本月叫料<small>點工地看叫料單</small></h3>'+(rows.length?rows.map(function(r){return '<div class="bar-row"><button type="button" class="btn sm" data-gosite="'+esc(r[0])+'">'+esc(r[0])+'</button><div class="track"><i style="width:'+(r[1].n/max*100)+'%"></i></div><span style="text-align:right">'+r[1].n+' 張</span></div>'}).join(""):'<div class="empty">這個月還沒有叫料單</div>')+'</div>'+
+  '<div class="panel"><h3>待辦：交貨日追蹤<small>依叫料單的交貨日</small></h3>'+todo()+'</div></div>'+
+  '<div class="two"><div class="panel"><h3>最新叫料單</h3>'+orderTable(S.orders.slice(0,8),true)+'</div>'+
+  '<div class="panel"><h3>本月叫料人</h3>'+(Object.keys(byWho).length?Object.keys(byWho).sort(function(a,b){return byWho[b]-byWho[a]}).map(function(k){return '<div class="bar-row"><span>'+esc(k)+'</span><div class="track"><i style="width:'+(byWho[k]/mo.length*100)+'%"></i></div><span style="text-align:right">'+byWho[k]+' 張</span></div>'}).join(""):'<div class="empty">—</div>')+
+  '<div class="note">「到貨、少送、出貨單照片、廠商計價和出錯率」要等「出貨核對」「帳單核對」做好後才有資料，下一階段會加進來。</div></div></div></div>';
+}
+function uniq(v,i,a){return v&&a.indexOf(v)===i}
+function todo(){
+  var list=S.orders.filter(function(x){var d=oDue(x);return d&&d>=fmtD(new Date(Date.now()-3*864e5))&&d<=fmtD(new Date(Date.now()+3*864e5))}).sort(function(a,b){return oDue(a).localeCompare(oDue(b))});
+  if(!list.length)return '<div class="empty">前後 3 天沒有要交貨的叫料單</div>';
+  return '<div class="tw"><table><tr><th>交貨日</th><th>工地</th><th>單號</th><th class="n">品項</th><th>叫料人</th></tr>'+list.map(function(x){var d=oDue(x);var t=d<TODAY?'<span class="st s-wait">'+d.slice(5)+' 已過</span>':d===TODAY?'<span class="st s-go">今天</span>':d.slice(5);return '<tr class="click" data-open="'+esc(x.id)+'"><td>'+t+'</td><td>'+esc(O(x).site)+'</td><td>'+esc(O(x).no)+'</td><td class="n">'+lines(x).length+'</td><td>'+esc(x.who)+'</td></tr>'}).join("")+'</table></div>';
+}
+
+// ---------- 叫料管理 ----------
+function filtered(){
+  var f=S.filt;return S.orders.filter(function(x){var o=O(x);return (!f.site||o.site===f.site)&&(!f.who||x.who===f.who)&&(!f.month||oDate(x).slice(0,7)===f.month)&&(!f.q||JSON.stringify([o.no,o.site,o.contact,o.note,x.who,lines(x).map(function(l){return l.name+l.size})]).indexOf(f.q)>=0)});
+}
+function orderTable(list,short){
+  if(!list.length)return '<div class="empty">沒有叫料單</div>';
+  return '<div class="tw"><table><tr><th>單號</th><th>工地</th><th>訂貨日</th><th>交貨日</th>'+(short?'':'<th>公司</th><th>收貨人</th>')+'<th class="n">品項</th><th>叫料人</th>'+(short?'':'<th></th>')+'</tr>'+
+   list.map(function(x){var o=O(x);return '<tr class="click" data-open="'+esc(x.id)+'"><td><b>'+esc(o.no||"—")+'</b>'+(o.adminBy?'<small>'+esc(o.adminBy)+' 改過</small>':'')+'</td><td>'+esc(o.site)+'</td><td>'+esc(oDate(x)||o.orderDate)+'</td><td>'+esc(oDue(x)||o.dueDate)+'</td>'+(short?'':'<td>'+esc(o.company)+'</td><td>'+esc(o.contact)+'<small>'+esc(o.contactTel)+'</small></td>')+'<td class="n">'+lines(x).length+'</td><td>'+esc(x.who)+'</td>'+(short?'':'<td><button type="button" class="btn sm" data-open="'+esc(x.id)+'">開啟</button></td>')+'</tr>'}).join("")+'</table></div>';
+}
+function pJL(){
+  var f=S.filt,list=filtered();
+  var sites=S.orders.map(function(x){return O(x).site}).filter(uniq).sort(),whos=S.orders.map(function(x){return x.who}).filter(uniq).sort(),months=S.orders.map(function(x){return oDate(x).slice(0,7)}).filter(uniq).sort().reverse();
+  var sel=function(id,cur,opts,all){return '<select class="in" id="'+id+'" aria-label="'+all+'"><option value="">'+all+'</option>'+opts.map(function(v){return '<option '+(v===cur?"selected":"")+'>'+esc(v)+'</option>'}).join("")+'</select>'};
+  return hero("叫料管理","全部叫料單",["共 "+S.orders.length+" 張","目前篩選 "+list.length+" 張","資料來源：試算表「訂單」「明細」"])+'<div class="content"><div class="panel">'+
+  '<div class="f"><input class="in grow" id="fq" value="'+esc(f.q)+'" placeholder="搜尋單號、品名、收貨人、備註…" aria-label="搜尋叫料單">'+sel("fsite",f.site,sites,"全部工地")+sel("fwho",f.who,whos,"全部叫料人")+sel("fmonth",f.month,months,"全部月份")+
+  '<div class="r"><button type="button" class="btn" id="csv">⬇ 匯出 Excel（CSV）</button></div></div>'+orderTable(list)+'</div></div>';
+}
+function csv(){
+  var rows=[["單號","工地","公司","訂貨日","交貨日","收貨人","電話","叫料人","分類","品名","尺寸","規格","單位","數量","備註"]];
+  filtered().forEach(function(x){var o=O(x);lines(x).forEach(function(l){rows.push([o.no,o.site,o.company,o.orderDate,o.dueDate,o.contact,o.contactTel,x.who,l.cat,(l.brand?l.brand+" ":"")+l.name,l.size,l.spec,l.unit,l.qty,l.remark||""])})});
+  var t="﻿"+rows.map(function(r){return r.map(function(v){v=String(v==null?"":v);return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v}).join(",")}).join("\r\n");
+  var a=document.createElement("a");a.href=URL.createObjectURL(new Blob([t],{type:"text/csv"}));a.download="叫料明細_"+TODAY+".csv";a.click();
+}
+function orderDlg(x){
+  var o=JSON.parse(JSON.stringify(O(x)));o.lines=o.lines||[];
+  S.dlg={t:"order",x:x,o:o};renderDlg();
+}
+
+// ---------- 手動叫料：直接用手機版全部功能 ----------
+function pNew(){
+  return hero("進料管理","手動叫料",["這裡就是叫料小幫手本體：點料、叫料單、紀錄、工地、設定、備份都在","叫完會同步到試算表"])+'<div class="content" style="padding-top:14px"><div class="panel"><iframe class="frame" src="index.html?embed=1" title="叫料小幫手"></iframe></div></div>';
+}
+
+// ---------- 工地資料 ----------
+function pSites(){
+  var del=S.siteTab==="del";var list=S.sites.filter(function(s){return !!s.off===del});
+  return hero("基本資料","工地資料（收貨人）",["和手機版「⚙ → 工地」同一份","存在試算表「工地資料」「收貨人」分頁"])+'<div class="content"><div class="panel">'+
+  '<div class="tabs2"><button type="button" data-stab="list" class="'+(del?"":"on")+'">工地<span class="c">'+S.sites.filter(function(s){return !s.off}).length+'</span></button><button type="button" data-stab="del" class="'+(del?"on":"")+'">已刪除<span class="c">'+S.sites.filter(function(s){return s.off}).length+'</span></button></div>'+
+  '<div class="f"><input class="in grow" id="siteQ" placeholder="搜尋工地、地址、收貨人" aria-label="搜尋工地"><div class="r"><button type="button" class="btn pri" data-snew="1">＋ 新增工地</button></div></div>'+
+  (list.length?'<div class="tw"><table><tr><th>工地名稱</th><th>公司抬頭</th><th>交貨地址</th><th>收貨人</th><th></th></tr>'+list.map(function(s,i){return '<tr data-row="1"><td><b>'+esc(s.name)+'</b></td><td>'+(esc(s.co)||'<span style="color:var(--mu)">（未填）</span>')+'</td><td style="min-width:220px">'+esc(s.addr)+'</td><td>'+(s.ppl.map(function(p){return esc(p[0])+' <span style="color:var(--mu);font-size:12px">'+esc(p[1])+'</span>'}).join("<br>")||'—')+'</td><td>'+(del?'<button type="button" class="btn sm" data-sundel="'+esc(s.id)+'">恢復</button>':'<button type="button" class="btn sm" data-sedit="'+esc(s.id)+'">✎ 修改</button>')+'</td></tr>'}).join("")+'</table></div>':'<div class="empty">沒有資料</div>')+'</div></div>';
+}
+function saveSites(list){return api({action:"saveSites",sites:list}).then(function(j){if(!j.ok)throw new Error(j.error);S.sites=j.sites||S.sites;toast("已儲存，所有人的手機也會更新");render()}).catch(function(e){alert("儲存失敗："+(e.message||e))})}
+
+// ---------- 廠商資料（試算表「常用廠商名單」「案場採購紀錄」） ----------
+function loadTable(name){
+  S.tables[name]={loading:true};
+  return api({action:"table",name:name}).then(function(j){if(j.ok&&!j.head)j={ok:false,error:"後台還沒更新到新版"};S.tables[name]=j;if(S.page==="vendor")render()}).catch(function(e){S.tables[name]={ok:false,error:String(e)};if(S.page==="vendor")render()});
+}
+function pVendor(){
+  var name=S.vTab,t=S.tables[name];
+  var tabs='<div class="tabs2">'+["常用廠商名單","案場採購紀錄"].map(function(n){var tt=S.tables[n];var c=tt&&tt.ok?tt.rows.filter(function(r){return !r.v[tt.head.length-1]}).length:"";return '<button type="button" data-vtab="'+n+'" class="'+(n===name&&!S.vDel?"on":"")+'">'+n+(c!==""?'<span class="c">'+c+'</span>':'')+'</button>'}).join("")+'<button type="button" data-vdeltab="1" class="'+(S.vDel?"on":"")+'">已刪除</button></div>';
+  var body;
+  if(!t||t.loading)body='<div class="spin">讀取中…</div>';
+  else if(!t.ok)body=t.missing?'<div class="warn"><b>試算表裡還沒有廠商資料。</b>請用電腦打開叫料小幫手的 Google 試算表，選「檔案 → 匯入 → 上傳」，選「常用廠商名單_整理版.xlsx」，匯入位置選「插入新工作表」。匯入後會多出「常用廠商名單」「案場採購紀錄」兩個分頁，回來按上面「⟳ 重新整理資料」就會出現。</div>':'<div class="warn">讀取失敗：'+esc(t.error)+'<br>如果寫「未知的動作」或一直失敗，代表後台還沒更新到新版。</div>';
+  else{
+    var H=t.head,di=H.length-1,ci=H.indexOf("供應系統/類別");
+    var cats=ci>=0?["全部"].concat(t.rows.reduce(function(a,r){String(r.v[ci]).split("、").forEach(function(c){c=c.trim();if(c&&a.indexOf(c)<0)a.push(c)});return a},[])):[];
+    var rows=t.rows.filter(function(r){return !!r.v[di]===S.vDel&&(!S.vq||r.v.join(" ").indexOf(S.vq)>=0)&&(S.vcat==="全部"||ci<0||String(r.v[ci]).split("、").map(function(c){return c.trim()}).indexOf(S.vcat)>=0)});
+    var show=H.map(function(h,i){return i}).filter(function(i){return i!==di&&H[i]!=="序號"&&H[i]!=="原檔名稱"});
+    body='<div class="f"><input class="in grow" id="vq" value="'+esc(S.vq)+'" placeholder="搜尋廠商、品項、案場，例如：富山閥、H型鋼、南海段" aria-label="搜尋">'+(cats.length&&name==="常用廠商名單"?'<select class="in" id="vcat" aria-label="類別">'+cats.map(function(c){return '<option '+(c===S.vcat?"selected":"")+'>'+esc(c)+'</option>'}).join("")+'</select>':'')+'<div class="r"><button type="button" class="btn pri" data-vnew="1">＋ 新增</button></div></div>'+
+    (rows.length?'<div class="tw" style="max-height:calc(100vh - 330px)"><table><tr>'+show.map(function(i){return '<th>'+esc(H[i])+'</th>'}).join("")+'<th></th></tr>'+rows.map(function(r){return '<tr>'+show.map(function(i,k){var v=esc(r.v[i]);return '<td style="'+(String(r.v[i]).length>18?"min-width:200px":"white-space:nowrap")+'">'+(k===0?'<b>'+v+'</b>':v)+'</td>'}).join("")+'<td>'+(S.vDel?'<button type="button" class="btn sm" data-vrest="'+r.row+'">恢復</button>':'<button type="button" class="btn sm" data-vedit="'+r.row+'">✎ 修改</button>')+'</td></tr>'}).join("")+'</table></div>':'<div class="empty">沒有資料</div>');
+  }
+  return hero("基本資料","廠商資料",["以「常用廠商名單_整理版」為準","存在試算表，只有管理員看得到"])+'<div class="content"><div class="panel">'+tabs+body+'</div></div>';
+}
+function saveRow(name,row,values,del){
+  return api({action:"saveRow",name:name,row:row,values:values,del:del}).then(function(j){if(!j.ok)throw new Error(j.error);S.tables[name]=j;S.dlg=null;toast("已儲存到試算表");render()}).catch(function(e){alert("儲存失敗："+(e.message||e))});
+}
+
+// ---------- 使用者管理 ----------
+function loadUsers(){return api({action:"users"}).then(function(j){S.users=j.ok?j.users:[];if(!j.ok)toast(j.error||"讀取使用者失敗")})}
+function pUser(){
+  var u=S.users;
+  return hero("系統","使用者管理",["管理員：全部功能、看得到價格、可用電腦版","助理：只能用手機版叫料"])+'<div class="content"><div class="panel"><div class="f"><span style="color:var(--mu)">帳號＝姓名，密碼存在試算表「使用者」分頁。</span><div class="r"><button type="button" class="btn pri" data-unew="1">＋ 新增使用者</button></div></div>'+
+  (!u?'<div class="spin">讀取中…</div>':'<div class="tw"><table><tr><th>姓名（帳號）</th><th>角色</th><th>狀態</th><th></th></tr>'+u.map(function(x){return '<tr><td><b>'+esc(x.name)+'</b></td><td>'+(x.admin?'<span class="st s-go">管理員</span>':'<span class="st s-ok">助理</span>')+'</td><td>'+(x.disabled?'<span class="st s-bad">停用</span>':'可登入')+'</td><td><button type="button" class="btn sm" data-uedit="'+esc(x.name)+'">✎ 修改</button></td></tr>'}).join("")+'</table></div>')+
+  '<div class="note">管理員的密碼建議各自設一組別人猜不到的；助理看不到價格和廠商資料。離職的人按「修改」→ 勾「停用」就馬上登不進來。</div></div></div>';
+}
+
+// ---------- 下一階段 ----------
+var SOON={ship:["出貨核對","收貨時拍出貨單，照片存到 Google 雲端硬碟（依工地、月份分資料夾），系統比對叫料數量，少送、多送會列進待辦。"],cmp:["比價下單","採購把叫料單送給廠商比價，參考「案場採購紀錄」的合約廠商和折數，選定後下單。"],bill:["帳單核對","把廠商月結帳單和出貨單、下單價格對帳，算出各廠商本月計價金額和出錯率，顯示在首頁。"],price:["價目表","整理所有廠商報價單、牌價、折數，查某個品項各家價格。"]};
+function pSoon(){var s=SOON[S.page]||["建置中",""];return hero("下一階段",s[0],[])+'<div class="content"><div class="panel"><div class="note" style="margin:18px"><b>這一頁還在做。</b><br>'+esc(s[1])+'</div></div></div>'}
+
+var PAGES={home:pHome,jl:pJL,newjl:pNew,sites:pSites,vendor:pVendor,user:pUser};
+
+// ---------- 對話框 ----------
+function field(id,label,val,extra){return '<label>'+esc(label)+'<input class="in" id="'+id+'" value="'+esc(val)+'" '+(extra||"")+'></label>'}
+function renderDlg(){
+  var d=S.dlg,h=$("dlgHost");if(!h)return;if(!d){h.innerHTML="";return}
+  var html="";
+  if(d.t==="order"){var o=d.o,x=d.x;
+    html='<h2>叫料單 '+esc(o.no||"")+'</h2><div class="grid2">'+field("o-site","工地",o.site)+field("o-co","公司",o.company)+field("o-od","訂貨日",o.orderDate)+field("o-dd","交貨日",o.dueDate)+field("o-ct","收貨人",o.contact)+field("o-tel","電話",o.contactTel)+'</div>'+field("o-note","備註",o.note||"")+
+    '<p style="color:var(--mu);margin:10px 0 4px">叫料人：'+esc(x.who)+'　品項 '+o.lines.length+' 項</p><div class="tw" style="max-height:320px"><table><tr><th>品名</th><th>尺寸／規格</th><th class="n">數量</th><th></th></tr>'+o.lines.map(function(l,i){return '<tr><td>'+esc((l.brand?l.brand+" ":"")+l.name)+'<small>'+esc(l.cat||"")+'</small></td><td>'+esc(l.size)+' <small>'+esc(l.spec||"")+'</small></td><td class="n" style="white-space:nowrap"><input class="in" data-lq="'+i+'" value="'+esc(l.qty)+'" inputmode="decimal" style="width:80px;text-align:right" aria-label="數量"> '+esc(l.unit||"")+'</td><td><button type="button" class="btn sm danger" data-ldel="'+i+'">刪</button></td></tr>'}).join("")+'</table></div>'+
+    '<div class="actions"><button type="button" class="btn danger" data-odel="1" style="margin-right:auto">刪除這張單</button><button type="button" class="btn" data-x="1">取消</button><button type="button" class="btn pri" data-osave="1">儲存修改</button></div><p style="font-size:12px;color:var(--mu);margin:6px 0 0">管理員修改後，叫料人的手機也會更新成新的內容。</p>'}
+  if(d.t==="site"){var s=d.s;
+    html='<h2>'+(d.isNew?"＋ 新增工地":"✎ 修改工地")+'</h2>'+field("se-n","工地名稱",s.name)+'<label style="margin-top:8px">公司抬頭<select class="in" id="se-co">'+[""].concat(COMPANIES).concat(s.co&&COMPANIES.indexOf(s.co)<0?[s.co]:[]).map(function(c){return '<option value="'+esc(c)+'" '+(c===s.co?"selected":"")+'>'+(esc(c)||"（請選擇）")+'</option>'}).join("")+'</select></label><div style="margin-top:8px">'+field("se-ad","交貨地址",s.addr)+'</div>'+
+    '<div style="margin-top:12px;font-weight:700">收貨人</div><div class="tw"><table><tr><th>姓名</th><th>電話</th><th></th></tr>'+s.ppl.map(function(p,i){return '<tr><td><input class="in" data-pn="'+i+'" value="'+esc(p[0])+'" aria-label="收貨人姓名"></td><td><input class="in" data-pt="'+i+'" value="'+esc(p[1])+'" aria-label="收貨人電話"></td><td><button type="button" class="btn sm danger" data-pdel="'+i+'">刪除</button></td></tr>'}).join("")+'</table></div><button type="button" class="btn" data-padd="1" style="margin-top:8px">＋ 新增收貨人</button>'+
+    (s.gone&&s.gone.length?'<div style="margin-top:12px;color:var(--mu)">已刪除的收貨人</div>'+s.gone.map(function(p,i){return '<div style="display:flex;gap:10px;align-items:center;padding:3px 0"><span style="flex:1">'+esc(p[0])+' '+esc(p[1])+'</span><button type="button" class="btn sm" data-prest="'+i+'">恢復</button></div>'}).join(""):"")+
+    '<div class="actions">'+(d.isNew?"":'<button type="button" class="btn danger" data-sdel="1" style="margin-right:auto">刪除這個工地</button>')+'<button type="button" class="btn" data-x="1">取消</button><button type="button" class="btn pri" data-ssave="1">儲存</button></div>'}
+  if(d.t==="vrow"){var t=S.tables[d.name],H=t.head,di=H.length-1;
+    html='<h2>'+(d.row?"✎ 修改":"＋ 新增")+'・'+esc(d.name)+'</h2><div class="grid2">'+H.map(function(hh,i){if(i===di)return "";var v=d.v?d.v[i]:"";var wide=String(v).length>16||/品項|備註|案場|全名/.test(hh);return '<label style="'+(wide?"grid-column:1/-1":"")+'">'+esc(hh)+'<input class="in" data-vf="'+esc(hh)+'" value="'+esc(v)+'"></label>'}).join("")+'</div>'+
+    '<div class="actions">'+(d.row?'<button type="button" class="btn danger" data-vdel="1" style="margin-right:auto">刪除</button>':'')+'<button type="button" class="btn" data-x="1">取消</button><button type="button" class="btn pri" data-vsave="1">儲存</button></div>'}
+  if(d.t==="user"){var u=d.u;
+    html='<h2>'+(d.isNew?"＋ 新增使用者":"✎ 修改使用者")+'</h2>'+field("u-n","姓名（帳號）",u.name,d.isNew?"":"readonly")+'<div style="margin-top:8px">'+field("u-p","密碼",u.pw||"")+'</div>'+
+    '<label style="margin-top:10px">角色<select class="in" id="u-r"><option value="0" '+(u.admin?"":"selected")+'>助理（只能手機叫料）</option><option value="1" '+(u.admin?"selected":"")+'>管理員（全部功能）</option></select></label>'+
+    '<label style="margin-top:10px;display:flex;gap:8px;align-items:center;color:var(--tx)"><input type="checkbox" id="u-d" '+(u.disabled?"checked":"")+'> 停用（不能登入）</label>'+
+    '<div class="actions">'+(d.isNew?"":'<button type="button" class="btn danger" data-udel="1" style="margin-right:auto">刪除帳號</button>')+'<button type="button" class="btn" data-x="1">取消</button><button type="button" class="btn pri" data-usave="1">儲存</button></div>'}
+  h.innerHTML='<div class="dlg-bg" data-x="1"></div><div class="dlg" role="dialog">'+html+'</div>';
+}
+function syncSite(){var s=S.dlg.s;s.name=$("se-n").value.trim();s.co=$("se-co").value;s.addr=$("se-ad").value.trim();document.querySelectorAll("[data-pn]").forEach(function(el){s.ppl[+el.dataset.pn][0]=el.value.trim()});document.querySelectorAll("[data-pt]").forEach(function(el){s.ppl[+el.dataset.pt][1]=el.value.trim()})}
+function busy(b){b.disabled=true;b.textContent="儲存中…"}
+function onDlgClick(e){
+  var d=S.dlg,t;if(!d)return;var q=function(s){return e.target.closest(s)};
+  if(q("[data-x]")){S.dlg=null;renderDlg();return}
+  if(d.t==="order"){
+    var o=d.o;
+    var readO=function(){o.site=$("o-site").value.trim();o.company=$("o-co").value.trim();o.orderDate=$("o-od").value.trim();o.dueDate=$("o-dd").value.trim();o.contact=$("o-ct").value.trim();o.contactTel=$("o-tel").value.trim();o.note=$("o-note").value.trim();document.querySelectorAll("[data-lq]").forEach(function(el){o.lines[+el.dataset.lq].qty=+el.value||0})};
+    if(t=q("[data-ldel]")){readO();o.lines.splice(+t.dataset.ldel,1);renderDlg();return}
+    if(t=q("[data-osave]")){readO();o.lines=o.lines.filter(function(l){return l.qty>0});busy(t);api({action:"adminSaveOrder",order:o,owner:d.x.who}).then(function(j){if(!j.ok)throw new Error(j.error);o.adminRev=j.rev;d.x.order=o;d.x.rev=j.rev;S.dlg=null;toast("已儲存");render()}).catch(function(err){alert("儲存失敗："+(err.message||err));renderDlg()});return}
+    if(t=q("[data-odel]")){if(!confirm("確定刪除叫料單 "+(o.no||"")+"？\n（會移到試算表「已刪除」分頁）"))return;busy(t);api({action:"adminDeleteOrder",id:d.x.id,owner:d.x.who}).then(function(j){if(!j.ok)throw new Error(j.error);S.orders=S.orders.filter(function(x){return x.id!==d.x.id});S.dlg=null;toast("已刪除");render()}).catch(function(err){alert("刪除失敗："+(err.message||err));renderDlg()});return}
+  }
+  if(d.t==="site"){
+    var s=d.s;
+    if(q("[data-padd]")){syncSite();s.ppl.push(["",""]);renderDlg();return}
+    if(t=q("[data-pdel]")){syncSite();var p=s.ppl.splice(+t.dataset.pdel,1)[0];if(p[0])s.gone=(s.gone||[]).concat([p]);renderDlg();return}
+    if(t=q("[data-prest]")){syncSite();s.ppl.push(s.gone.splice(+t.dataset.prest,1)[0]);renderDlg();return}
+    if(t=q("[data-ssave]")){syncSite();if(!s.name){alert("請填工地名稱");return}
+      var orig=d.orig||{ppl:[]};var c={id:s.id,oldName:orig.name,name:s.name,co:s.co,addr:s.addr,add:[],remove:[]};
+      s.ppl.filter(function(p){return p[0]}).forEach(function(p){var was=orig.ppl.filter(function(x){return x[0]===p[0]})[0];if(!was||was[1]!==p[1])c.add.push(p)});
+      orig.ppl.forEach(function(p){if(!s.ppl.some(function(x){return x[0]===p[0]}))c.remove.push(p[0])});
+      busy(t);saveSites([c]).then(function(){S.dlg=null;renderDlg()});return}
+    if(q("[data-sdel]")){if(!confirm("刪除工地「"+d.orig.name+"」？之後可以在「已刪除」恢復。"))return;saveSites([{id:s.id,name:d.orig.name,del:true}]).then(function(){S.dlg=null;renderDlg()});return}
+  }
+  if(d.t==="vrow"){
+    if(t=q("[data-vsave]")){var vals={};document.querySelectorAll("[data-vf]").forEach(function(el){vals[el.dataset.vf]=el.value.trim()});busy(t);saveRow(d.name,d.row||0,vals,d.row?undefined:false);return}
+    if(q("[data-vdel]")){if(!confirm("刪除這一筆？之後可以在「已刪除」恢復。"))return;saveRow(d.name,d.row,{},true);return}
+  }
+  if(d.t==="user"){
+    if(t=q("[data-usave]")){var u={name:$("u-n").value.trim(),pw:$("u-p").value.trim(),admin:$("u-r").value==="1",disabled:$("u-d").checked};if(!u.name||!u.pw){alert("請填姓名和密碼");return}busy(t);
+      api({action:"saveUser",user:u}).then(function(j){if(!j.ok)throw new Error(j.error);return loadUsers()}).then(function(){S.dlg=null;toast("已儲存");render()}).catch(function(err){alert("儲存失敗："+(err.message||err));renderDlg()});return}
+    if(q("[data-udel]")){if(!confirm("刪除帳號「"+d.u.name+"」？（只要不讓他登入，用「停用」就好）"))return;api({action:"deleteUser",name:d.u.name}).then(function(j){if(!j.ok)throw new Error(j.error);return loadUsers()}).then(function(){S.dlg=null;render()}).catch(function(err){alert("刪除失敗："+(err.message||err))});return}
+  }
+}
+
+// ---------- 頁面上的點擊 ----------
+function onClick(e){
+  var t,q=function(s){return e.target.closest(s)};
+  if(t=q("[data-open]")){var x=S.orders.filter(function(o){return o.id===t.dataset.open})[0];if(x)orderDlg(x);return}
+  if(t=q("[data-gosite]")){S.filt={site:t.dataset.gosite,who:"",month:MONTH,q:""};S.page="jl";render();return}
+  if(q("#csv")){csv();return}
+  if(t=q("[data-stab]")){S.siteTab=t.dataset.stab;render();return}
+  if(t=q("[data-sedit]")){var s=S.sites.filter(function(x){return x.id===t.dataset.sedit})[0];S.dlg={t:"site",orig:s,s:JSON.parse(JSON.stringify(s))};renderDlg();return}
+  if(q("[data-snew]")){S.dlg={t:"site",isNew:1,orig:null,s:{id:"",name:"",co:"",addr:"",ppl:[["",""]],gone:[]}};renderDlg();return}
+  if(t=q("[data-sundel]")){var s2=S.sites.filter(function(x){return x.id===t.dataset.sundel})[0];saveSites([{id:s2.id,name:s2.name,undel:true}]);return}
+  if(t=q("[data-vtab]")){S.vTab=t.dataset.vtab;S.vDel=false;render();return}
+  if(q("[data-vdeltab]")){S.vDel=true;render();return}
+  if(t=q("[data-vedit]")){var tb=S.tables[S.vTab],r=tb.rows.filter(function(r){return r.row===+t.dataset.vedit})[0];S.dlg={t:"vrow",name:S.vTab,row:r.row,v:r.v};renderDlg();return}
+  if(q("[data-vnew]")){S.dlg={t:"vrow",name:S.vTab,row:0,v:null};renderDlg();return}
+  if(t=q("[data-vrest]")){saveRow(S.vTab,+t.dataset.vrest,{},false);return}
+  if(t=q("[data-uedit]")){var u=S.users.filter(function(x){return x.name===t.dataset.uedit})[0];S.dlg={t:"user",u:u};renderDlg();return}
+  if(q("[data-unew]")){S.dlg={t:"user",isNew:1,u:{name:"",pw:"",admin:false,disabled:false}};renderDlg();return}
+}
+var tmr;
+function onInput(e){
+  var id=e.target.id;
+  if(id==="fq"||id==="vq"){clearTimeout(tmr);var v=e.target.value.trim();tmr=setTimeout(function(){if(id==="fq")S.filt.q=v;else S.vq=v;render();var el=$(id);if(el){el.focus();el.setSelectionRange(el.value.length,el.value.length)}},350)}
+  if(id==="siteQ"){var v2=e.target.value.trim();document.querySelectorAll("#page tr[data-row]").forEach(function(r){r.style.display=!v2||r.textContent.indexOf(v2)>=0?"":"none"})}
+}
+function onChange(e){
+  var id=e.target.id;
+  if(id==="fsite"){S.filt.site=e.target.value;render()}
+  if(id==="fwho"){S.filt.who=e.target.value;render()}
+  if(id==="fmonth"){S.filt.month=e.target.value;render()}
+  if(id==="vcat"){S.vcat=e.target.value;render()}
+}
+
+load().then(function(){shell();render()}).catch(function(e){if(e)gate("讀取失敗",String(e.message||e)+"。請確認網路後重試。","回叫料小幫手")});
+})();
+</script>
+</body>
+</html>

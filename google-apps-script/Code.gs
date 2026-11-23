@@ -11,7 +11,7 @@
 // 初次建立「使用者」分頁時帶入的名單，格式：[["姓名","電話"], ...]；之後直接在試算表裡改即可。
 var SEED_USERS = [];
 // 管理員名單（可在網站上新增、刪除使用人）；試算表 D 欄填「管理員」也算。
-var ADMINS = ["李羿萱"];
+var ADMINS = ["李羿萱", "周佳珍", "蔡鴻基"];
 // 若程式是從試算表「擴充功能 → Apps Script」開啟，這行留空即可；
 // 若是獨立的 Apps Script 專案，填入試算表網址中 /d/ 與 /edit 之間那一串 ID。
 var SHEET_ID = "";
@@ -216,6 +216,12 @@ function doPost(e) {
       return json_(manageUsers_(body, who));
     }
     if (body.action === "sites") return json_({ ok: true, sites: getSites_(book_()) });
+    // 電腦版：廠商名單、案場採購紀錄（只有管理員）
+    if (body.action === "table" || body.action === "saveRow") {
+      if (!auth.admin) return json_({ ok: false, error: "只有管理員可以看廠商資料" });
+      if (body.action === "saveRow") lock.waitLock(25000);
+      return json_(body.action === "table" ? getTable_(body.name) : saveRow_(body, who));
+    }
     if (body.action === "saveSites") {
       lock.waitLock(25000);
       return json_({ ok: true, sites: saveSites_(book_(), body.sites || [], who) });
@@ -289,9 +295,12 @@ function manageUsers_(body, me) {
     var disabled = u.disabled && name !== me ? "停用" : "";
     if (i < 0) {
       sh.getRange(sh.getLastRow() + 1, 1, 1, 3).setNumberFormat("@").setValues([[name, pw, disabled]]);
+      i = sh.getLastRow() - 2;
     } else {
       sh.getRange(i + 2, 2, 1, 2).setNumberFormat("@").setValues([[pw, disabled]]);
     }
+    // 電腦版會送 admin：true＝管理員、false＝助理（自己不能取消自己的管理員）
+    if (typeof u.admin === "boolean" && !(name === me && !u.admin)) sh.getRange(i + 2, 4).setValue(u.admin ? "管理員" : "");
     return { ok: true, done: true };
   }
   if (body.action === "deleteUser") {
@@ -672,4 +681,49 @@ function clearAllOrders() {
 function clearRows_(sh, n) {
   if (sh.getMaxRows() <= n + 1) sh.insertRowsAfter(sh.getMaxRows(), 5);
   sh.deleteRows(2, n);
+}
+
+// ---------- 電腦版：廠商名單、案場採購紀錄 ----------
+// 把「常用廠商名單_整理版.xlsx」用「檔案 → 匯入 → 插入新工作表」匯進這份試算表，就會有這兩個分頁。
+// 第一列是標題；程式會自動在最後補「聯絡人」「電話」「刪除（打勾）」欄。刪除＝打勾，可以恢復。
+var TABLES = { "常用廠商名單": ["聯絡人", "電話"], "案場採購紀錄": [] };
+var DEL_COL = "刪除（打勾）";
+function tableSheet_(name) {
+  if (!Object.prototype.hasOwnProperty.call(TABLES, name)) return { error: "沒有這個分頁" };
+  var sh = book_().getSheetByName(name);
+  if (!sh) return { error: "試算表裡還沒有「" + name + "」分頁，請先把常用廠商名單 Excel 匯入" };
+  var head = sh.getRange(1, 1, 1, Math.max(1, sh.getLastColumn())).getValues()[0].map(function (h) { return String(h).trim(); });
+  TABLES[name].concat([DEL_COL]).forEach(function (h) {
+    if (head.indexOf(h) < 0) { head.push(h); sh.getRange(1, head.length).setValue(h).setFontWeight("bold"); }
+  });
+  return { sh: sh, head: head };
+}
+function getTable_(name) {
+  var t = tableSheet_(name);
+  if (t.error) return { ok: false, error: t.error, missing: true };
+  var n = t.sh.getLastRow() - 1;
+  var vals = n > 0 ? t.sh.getRange(2, 1, n, t.head.length).getDisplayValues() : [];
+  var di = t.head.indexOf(DEL_COL);
+  var rows = [];
+  vals.forEach(function (r, i) {
+    if (!r.some(function (v, k) { return k !== di && String(v).trim(); })) return;
+    rows.push({ row: i + 2, v: r.map(function (v, k) { return k === di ? (String(v).toUpperCase() === "TRUE" || String(v) === "是") : String(v); }) });
+  });
+  return { ok: true, head: t.head, rows: rows };
+}
+// {name, row:列號(新增填0), values:{標題:值}, del:true/false}
+function saveRow_(body, who) {
+  var t = tableSheet_(String(body.name || ""));
+  if (t.error) return { ok: false, error: t.error };
+  var sh = t.sh, head = t.head, row = Number(body.row) || 0;
+  if (row < 2 || row > sh.getLastRow()) { row = sh.getLastRow() + 1; }
+  var cur = sh.getRange(row, 1, 1, head.length).getValues()[0];
+  var vals = body.values || {};
+  head.forEach(function (h, k) {
+    if (h === DEL_COL) { if (typeof body.del === "boolean") cur[k] = body.del; return; }
+    if (Object.prototype.hasOwnProperty.call(vals, h)) cur[k] = String(vals[h]);
+  });
+  sh.getRange(row, 1, 1, head.length).setValues([cur]);
+  sh.getRange(row, head.indexOf(DEL_COL) + 1).insertCheckboxes();
+  return getTable_(String(body.name));
 }

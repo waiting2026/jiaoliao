@@ -3,7 +3,7 @@
 (function(){
   "use strict";
   var CFG_KEY="jiaoliao_sync_cfg";
-  var ADMINS=["李羿萱"];
+  var ADMINS=["李羿萱","周佳珍","蔡鴻基"];
   function cfg(){try{return JSON.parse(localStorage.getItem(CFG_KEY)||"{}")}catch(e){return{}}}
   function isAdmin(){var c=cfg();return !!(c.who&&c.code&&!c.locked)&&(c.role==="admin"||ADMINS.indexOf(c.who)>=0)}
   function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(ch){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[ch]})}
