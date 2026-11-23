@@ -80,7 +80,15 @@ td.n,th.n{text-align:right}
 td small{display:block;color:var(--mu);font-size:12px}
 tr.click{cursor:pointer}tr.click:hover td{background:var(--accl)}
 .st{font-size:12px;padding:1px 10px;border-radius:99px;white-space:nowrap;display:inline-block}
-.s-ok{background:var(--greenl);color:var(--green)}.s-bad{background:var(--redl);color:var(--red)}.s-wait{background:var(--amberl);color:var(--amber)}.s-go{background:var(--accl);color:var(--acc2)}
+.s-ok{background:var(--greenl);color:var(--green)}
+.s-bad{background:#fde8e6;color:#b4382c}.s-warn{background:var(--amberl);color:#8a5a00}.s-none{background:#eef0f3;color:#6b7280}
+.ship2{display:grid;grid-template-columns:minmax(300px,380px) minmax(0,1fr);gap:16px;align-items:start}@media (max-width:900px){.ship2{grid-template-columns:1fr}}
+tr.sel td{background:var(--accl)}
+.shipt td small{display:block}.shipt input.in.qin{width:90px;text-align:right}.ship2 .tabs2{flex-wrap:wrap;overflow:visible}.qin.sug{background:#fff6d6;border-color:#e0b100}
+.phs{display:flex;flex-wrap:wrap;gap:10px;margin-top:8px}.ph{position:relative;width:120px;height:120px;border-radius:12px;overflow:hidden;background:#eef0f3;display:flex;align-items:center;justify-content:center;cursor:zoom-in;font-size:12px;color:var(--mu)}.ph img{width:100%;height:100%;object-fit:cover}
+.phx{position:absolute;top:4px;right:4px;width:26px;height:26px;border-radius:50%;border:0;background:rgba(0,0,0,.55);color:#fff;font-size:16px;line-height:26px;cursor:pointer;padding:0}
+.phbig{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:200;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;cursor:zoom-out;color:#fff;font-size:13px}.phbig img{max-width:94vw;max-height:88vh;border-radius:8px}
+.ocr{white-space:pre-wrap;background:#f6f7f9;border-radius:10px;padding:10px;font-size:12px;max-height:220px;overflow:auto;margin:6px 0 0}.s-bad{background:var(--redl);color:var(--red)}.s-wait{background:var(--amberl);color:var(--amber)}.s-go{background:var(--accl);color:var(--acc2)}
 .note{margin:12px 18px;background:var(--accl);border-radius:14px;padding:10px 14px}
 .warn{margin:12px 18px;background:var(--amberl);border-radius:14px;padding:10px 14px}
 .empty{padding:28px 18px;color:var(--mu);text-align:center}
@@ -129,7 +137,7 @@ touch();
 
 // ---------- 狀態 ----------
 var S={page:"home",orders:[],deleted:[],sites:[],users:null,tables:{},filt:{site:"",who:"",month:"",q:"",tab:"list"},siteTab:"list",vTab:"常用廠商名單",vq:"",vcat:"全部",vDel:false,dlg:null};
-var NAV=[["工地管理",[["home","首頁儀表板"],["jl","進料管理"],["newjl","手動叫料"],["hist","叫料紀錄"],["sum","叫料統計"],["ship","出貨核對",1],["cmp","比價下單",1],["bill","帳單核對",1],["price","價目表",1]]],
+var NAV=[["工地管理",[["home","首頁儀表板"],["jl","進料管理"],["newjl","手動叫料"],["hist","叫料紀錄"],["sum","叫料統計"],["ship","出貨核對"],["cmp","比價下單",1],["bill","帳單核對",1],["price","價目表",1]]],
  ["基本資料",[["sites","工地資料（收貨人）"],["vendor","廠商資料"]]],
  ["系統",[["user","使用者管理"],["phone","切換到手機版"]]]];
 var now=new Date();
@@ -152,6 +160,7 @@ function load(){
     var dead={};(j.deleted||[]).forEach(function(d){dead[d.id]=1});
     S.orders=(j.orders||[]).filter(function(x){return !dead[x.id]}).sort(function(a,b){return (oDate(b)+(O(b).no||"")).localeCompare(oDate(a)+(O(a).no||""))});
     S.sites=j.sites||[];
+    S.ships=null;S.shipErr="";return loadShips();
   });
 }
 
@@ -217,8 +226,8 @@ function filtered(){
 }
 function orderTable(list,short){
   if(!list.length)return '<div class="empty">沒有叫料單</div>';
-  return '<div class="tw"><table><tr><th>單號</th><th>工地</th><th>訂貨日</th><th>交貨日</th>'+(short?'':'<th>公司</th><th>收貨人</th>')+'<th class="n">品項</th><th>叫料人</th>'+(short?'':'<th></th>')+'</tr>'+
-   list.map(function(x){var o=O(x);return '<tr class="click" data-open="'+esc(x.id)+'"><td><b>'+esc(o.no||"—")+'</b>'+(o.adminBy?'<small>'+esc(o.adminBy)+' 改過</small>':'')+'</td><td>'+esc(o.site)+'</td><td>'+esc(oDate(x)||o.orderDate)+'</td><td>'+esc(oDue(x)||o.dueDate)+'</td>'+(short?'':'<td>'+esc(o.company)+'</td><td>'+esc(o.contact)+'<small>'+esc(o.contactTel)+'</small></td>')+'<td class="n">'+lines(x).length+'</td><td>'+esc(x.who)+'</td>'+(short?'':'<td><button type="button" class="btn sm" data-open="'+esc(x.id)+'">開啟</button></td>')+'</tr>'}).join("")+'</table></div>';
+  return '<div class="tw"><table><tr><th>單號</th><th>工地</th><th>訂貨日</th><th>交貨日</th>'+(short?'':'<th>公司</th><th>收貨人</th>')+'<th class="n">品項</th><th>叫料人</th>'+(short?'':'<th>到貨</th><th></th>')+'</tr>'+
+   list.map(function(x){var o=O(x);return '<tr class="click" data-open="'+esc(x.id)+'"><td><b>'+esc(o.no||"—")+'</b>'+(o.adminBy?'<small>'+esc(o.adminBy)+' 改過</small>':'')+'</td><td>'+esc(o.site)+'</td><td>'+esc(oDate(x)||o.orderDate)+'</td><td>'+esc(oDue(x)||o.dueDate)+'</td>'+(short?'':'<td>'+esc(o.company)+'</td><td>'+esc(o.contact)+'<small>'+esc(o.contactTel)+'</small></td>')+'<td class="n">'+lines(x).length+'</td><td>'+esc(x.who)+'</td>'+(short?'':'<td>'+(S.ships?shipChip(shipStatus(x)):"")+'</td><td><button type="button" class="btn sm" data-open="'+esc(x.id)+'">開啟</button></td>')+'</tr>'}).join("")+'</table></div>';
 }
 function pJL(){
   var f=S.filt,list=filtered();
@@ -258,6 +267,105 @@ setInterval(function(){
   if(document.activeElement!==sel&&sel.value!==p.value)sel.value=p.value;
   if(!sel.onchange)sel.onchange=function(){var q=fr.contentDocument.getElementById("proj");q.value=sel.value;q.dispatchEvent(new Event("change",{bubbles:true}))};
 },500);
+
+// ---------- 出貨核對 ----------
+// 每張叫料單一筆核對紀錄：每個品項填到貨數量、上傳出貨單照片（存雲端硬碟），照片上的字會自動讀出來幫忙填數量。
+function lkey(l,i){return String(l.id||i)}
+function lineLabel(l){return ((l.brand?l.brand+" ":"")+(l.name||"")).trim()}
+function shipCalc(x,recv){
+  var ls=lines(x),st={},short=0,over=0,done=0;
+  ls.forEach(function(l,i){var k=lkey(l,i),v=recv&&recv[k];if(v===undefined||v===null||v===""){st[k]="";return}v=+v;done++;var w=+l.qty||0;
+    st[k]=v===w?"ok":v<w?(v===0?"none":"short"):"over";if(v<w)short++;if(v>w)over++});
+  var s=!done?"":short?"有短少":over?"有多送":done<ls.length?"部分核對":"已到齊";
+  return {line:st,status:s};
+}
+function shipOf(x){return S.ships&&S.ships[x.id]}
+function shipStatus(x){var r=shipOf(x);return r&&r.status||"未核對"}
+function shipChip(s){var c={"已到齊":"s-ok","有短少":"s-bad","有多送":"s-warn","部分核對":"s-warn"}[s]||"s-none";return '<span class="st '+c+'">'+esc(s)+'</span>'}
+function loadShips(){return api({action:"shipList"}).then(function(j){if(j.ok){S.ships=j.ships||{};S.shipErr=""}else S.shipErr=j.error||"讀取失敗"}).catch(function(e){S.shipErr=String(e.message||e)})}
+function pShip(){
+  if(!S.ships&&!S.shipErr){loadShips().then(function(){if(S.page==="ship")render()});return hero("進料管理","出貨核對",[])+'<div class="spin">讀取核對紀錄中…</div>'}
+  if(S.shipErr)return hero("進料管理","出貨核對",[])+'<div class="content"><div class="panel"><div class="warn">讀取失敗：'+esc(S.shipErr)+'<br>如果寫「未知的動作」，代表後台還沒更新到有出貨核對的版本。</div></div></div>';
+  var f=S.shipF||(S.shipF={tab:"待核對",site:""});
+  var cnt={"待核對":0,"有問題":0,"已到齊":0,"全部":S.orders.length};
+  S.orders.forEach(function(x){var s=shipStatus(x);if(s==="已到齊")cnt["已到齊"]++;else if(s==="有短少"||s==="有多送")cnt["有問題"]++;else cnt["待核對"]++});
+  var list=S.orders.filter(function(x){var s=shipStatus(x);if(f.site&&O(x).site!==f.site)return false;
+    if(f.tab==="已到齊")return s==="已到齊";if(f.tab==="有問題")return s==="有短少"||s==="有多送";if(f.tab==="待核對")return s!=="已到齊"&&s!=="有短少"&&s!=="有多送";return true});
+  if(f.tab==="待核對")list=list.slice().sort(function(a,b){return (oDue(a)||"9").localeCompare(oDue(b)||"9")});
+  var sel=S.orders.filter(function(x){return x.id===S.shipSel})[0];
+  var sites=S.orders.map(function(x){return O(x).site}).filter(uniq).sort();
+  var left='<div class="panel"><div class="tabs2">'+["待核對","有問題","已到齊","全部"].map(function(k){return '<button type="button" data-shtab="'+k+'" class="'+(f.tab===k?"on":"")+'">'+k+'<span class="c">'+cnt[k]+'</span></button>'}).join("")+'</div>'+
+    '<div class="f"><select class="in grow" id="shSite" aria-label="工地"><option value="">全部工地</option>'+sites.map(function(s){return '<option '+(s===f.site?"selected":"")+'>'+esc(s)+'</option>'}).join("")+'</select></div>'+
+    (list.length?'<div class="tw" style="max-height:calc(100vh - 300px)"><table><tr><th>單號／工地</th><th>交貨日</th><th>狀態</th></tr>'+list.map(function(x){var o=O(x),r=shipOf(x);return '<tr class="click'+(x.id===S.shipSel?' sel':'')+'" data-ship="'+esc(x.id)+'"><td><b>'+esc(o.no||"—")+'</b><small>'+esc(o.site)+'・'+esc(x.who)+'</small></td><td>'+esc(oDue(x)||o.dueDate||"")+(oDue(x)&&oDue(x)<TODAY&&shipStatus(x)==="未核對"?'<small style="color:#c0392b">已過交貨日</small>':'')+'</td><td>'+shipChip(shipStatus(x))+(r&&r.photos&&r.photos.length?'<small>📷 '+r.photos.length+'</small>':'')+'</td></tr>'}).join("")+'</table></div>':'<div class="empty">這裡沒有叫料單</div>')+'</div>';
+  var right=sel?shipDetail(sel):'<div class="panel"><div class="empty" style="padding:60px 20px">← 從左邊選一張叫料單開始核對<br><small style="color:var(--mu)">每個品項填到貨數量，或上傳出貨單照片讓系統幫你讀數量</small></div></div>';
+  return hero("進料管理","出貨核對",["待核對 "+cnt["待核對"]+" 張","有問題 "+cnt["有問題"]+" 張","照片存在雲端硬碟「叫料小幫手_出貨照片」"])+'<div class="content"><div class="ship2">'+left+right+'</div></div>';
+}
+function shipDetail(x){
+  var o=O(x),r=shipOf(x)||{photos:[],recv:{}};
+  var d=S.shipD&&S.shipD.id===x.id?S.shipD:(S.shipD={id:x.id,recv:JSON.parse(JSON.stringify(r.recv||{})),note:r.note||"",sug:{},dirty:false});
+  var c=shipCalc(x,d.recv);
+  var lab={ok:'<span class="st s-ok">到齊</span>',short:'<span class="st s-bad">少送</span>',none:'<span class="st s-bad">沒到</span>',over:'<span class="st s-warn">多送</span>',"":'<span class="st s-none">未填</span>'};
+  var rows=lines(x).map(function(l,i){var k=lkey(l,i),v=d.recv[k];v=v===undefined?"":v;var diff=v===""?"":(+v-(+l.qty||0));
+    return '<tr><td>'+(i+1)+'</td><td><b>'+esc(lineLabel(l))+'</b><small>'+esc([l.size,l.spec].filter(Boolean).join("　"))+'</small></td><td class="n">'+esc(l.qty)+' '+esc(l.unit||"")+'</td>'+
+    '<td class="n"><input class="in qin'+(d.sug[k]?' sug':'')+'" type="number" inputmode="decimal" min="0" step="any" data-recv="'+esc(k)+'" value="'+esc(v)+'" aria-label="'+esc(lineLabel(l))+' 到貨數量"'+(d.sug[k]?' title="照片判讀填入，請確認"':'')+'></td>'+
+    '<td>'+lab[c.line[k]]+(diff!==""&&diff!==0?'<small>'+(diff>0?"+":"")+diff+'</small>':'')+'</td></tr>'}).join("");
+  var ph=(r.photos||[]).map(function(fid){var src=S.img&&S.img[fid];return '<div class="ph" data-phview="'+esc(fid)+'">'+(src?'<img src="'+src+'" alt="出貨照片">':'<span>載入中…</span>')+'<button type="button" class="phx" data-phdel="'+esc(fid)+'" aria-label="刪除這張照片">×</button></div>'}).join("");
+  setTimeout(function(){(r.photos||[]).forEach(loadImg)},0);
+  return '<div class="panel"><div style="padding:14px 18px 4px;display:flex;gap:10px;align-items:baseline;flex-wrap:wrap"><h3 style="margin:0;padding:0">'+esc(o.no||"")+'　'+esc(o.site)+'</h3><span style="color:var(--mu)">叫料人 '+esc(x.who)+'・訂貨 '+esc(oDate(x)||o.orderDate)+'・交貨 '+esc(oDue(x)||o.dueDate)+'</span><span style="margin-left:auto">'+shipChip(c.status||"未核對")+'</span></div>'+
+   (r.who?'<div style="padding:0 18px;color:var(--mu);font-size:12px">上次核對：'+esc(r.who)+'　'+esc(r.at)+'</div>':'')+
+   '<div class="f"><button type="button" class="btn" data-shall="1">✓ 全部到齊</button><button type="button" class="btn" data-shclr="1">清空數量</button>'+
+   '<label class="btn pri" style="cursor:pointer">📷 上傳出貨單照片<input type="file" id="shFile" accept="image/*" multiple hidden></label>'+(d.text?'<button type="button" class="btn" data-shocr="1">↻ 用照片文字重新比對</button>':'')+'</div>'+
+   (d.msg?'<div class="note">'+d.msg+'</div>':'')+
+   '<div class="tw"><table class="shipt"><tr><th>#</th><th>品名</th><th class="n">叫料</th><th class="n">到貨</th><th>狀態</th></tr>'+rows+'</table></div>'+
+   '<div style="padding:10px 18px"><b style="font-size:13px">出貨單照片</b><div class="phs">'+(ph||'<span style="color:var(--mu);font-size:13px">還沒有照片。可以一次選多張，手機會直接開相機。</span>')+'</div>'+
+   (d.text?'<details style="margin-top:8px"><summary style="cursor:pointer;color:var(--mu);font-size:13px">看照片讀到的文字</summary><pre class="ocr">'+esc(d.text)+'</pre></details>':'')+
+   '<label style="display:block;margin-top:10px;font-size:13px">備註（例如：少送的會補、哪裡有問題）<textarea class="in" id="shNote" rows="2" style="width:100%">'+esc(d.note)+'</textarea></label>'+
+   '<div class="actions" style="padding:10px 0 4px"><button type="button" class="btn pri" data-shsave="1">💾 儲存核對結果</button>'+(d.dirty?'<span style="color:var(--acc2);font-size:13px">還沒儲存</span>':'')+'</div></div></div>';
+}
+function loadImg(fid){S.img=S.img||{};if(S.img[fid]||S.img["_"+fid])return;S.img["_"+fid]=1;
+  api({action:"shipImg",id:S.shipSel,fileId:fid}).then(function(j){if(j.ok){S.img[fid]="data:"+j.mime+";base64,"+j.data;if(S.page==="ship")shipRefresh()}})}
+function shipRefresh(){var y=scrollY;render();scrollTo(0,y)}
+function normT(s){return String(s||"").replace(/[！-～]/g,function(c){return String.fromCharCode(c.charCodeAt(0)-0xFEE0)}).replace(/[″”〃]/g,'"').replace(/[′’]/g,"'").replace(/\s+/g,"").toLowerCase()}
+// 用照片讀到的文字找每個品項的到貨數量：同一行要有品名（或品名前兩個字＋尺寸），再取這行剩下的數字
+function ocrMatch(x,text){
+  var tl=String(text||"").split(/\n/).map(normT).filter(Boolean),out={};
+  lines(x).forEach(function(l,i){var nm=normT(l.name),sz=normT(l.size),best=null,bs=0;
+    tl.forEach(function(t){var s=0;if(nm&&t.indexOf(nm)>=0)s+=3;else if(nm.length>=2&&t.indexOf(nm.slice(0,2))>=0)s+=1;if(sz&&t.indexOf(sz)>=0)s+=2;if(s>bs){bs=s;best=t}});
+    if(!best||bs<3)return;
+    var rest=nm?best.split(nm).join(" "):best;if(sz)rest=rest.split(sz).join(" ");
+    var nums=(rest.match(/\d+(\.\d+)?/g)||[]).map(Number);if(!nums.length)return;
+    var w=+l.qty||0;out[lkey(l,i)]=nums.indexOf(w)>=0?w:nums[nums.length-1]});
+  return out;
+}
+function applyOcr(x,d,text){var m=ocrMatch(x,text),n=0;Object.keys(m).forEach(function(k){if(d.recv[k]===undefined||d.recv[k]===""||d.sug[k]){d.recv[k]=m[k];d.sug[k]=1;n++}});d.dirty=d.dirty||n>0;
+  d.msg=n?'照片判讀填了 <b>'+n+'</b> 個品項（黃色框），請對照照片確認後按「儲存核對結果」。':'照片上的字沒有對到品項，請手動填數量。';}
+function resizeImg(file){return new Promise(function(ok,no){var fr=new FileReader();fr.onerror=no;fr.onload=function(){var im=new Image();im.onerror=function(){no(new Error("這個檔案不是照片"))};im.onload=function(){var k=Math.min(1,1800/Math.max(im.width,im.height)),c=document.createElement("canvas");c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);c.getContext("2d").drawImage(im,0,0,c.width,c.height);ok(c.toDataURL("image/jpeg",0.85))};im.src=fr.result};fr.readAsDataURL(file)})}
+function shipClick(e){
+  var t,q=function(s){return e.target.closest(s)};if(S.page!=="ship")return false;
+  if(t=q("[data-shtab]")){S.shipF.tab=t.dataset.shtab;render();return true}
+  if(t=q("[data-ship]")){if(S.shipD&&S.shipD.dirty&&S.shipD.id!==t.dataset.ship&&!confirm("這張還沒儲存，確定要換別張嗎？"))return true;S.shipSel=t.dataset.ship;S.shipD=null;render();return true}
+  var x=S.orders.filter(function(o){return o.id===S.shipSel})[0],d=S.shipD;if(!x||!d)return false;
+  if(q("[data-shall]")){lines(x).forEach(function(l,i){d.recv[lkey(l,i)]=+l.qty||0});d.sug={};d.dirty=true;d.msg="";shipRefresh();return true}
+  if(q("[data-shclr]")){d.recv={};d.sug={};d.dirty=true;d.msg="";shipRefresh();return true}
+  if(q("[data-shocr]")){applyOcr(x,d,d.text);shipRefresh();return true}
+  if(t=q("[data-phdel]")){if(!confirm("刪除這張照片？（會移到雲端硬碟的垃圾桶）"))return true;api({action:"shipDelPhoto",id:x.id,fileId:t.dataset.phdel}).then(function(j){if(!j.ok)throw new Error(j.error);S.ships[x.id]=j.ship;shipRefresh();toast("已刪除照片")}).catch(function(err){toast("刪除失敗："+(err.message||err))});return true}
+  if(t=q("[data-phview]")){var src=S.img&&S.img[t.dataset.phview];if(src){var v=document.createElement("div");v.className="phbig";v.innerHTML='<img src="'+src+'" alt="出貨照片"><span>點一下關閉</span>';v.onclick=function(){v.remove()};document.body.appendChild(v)}return true}
+  if(t=q("[data-shsave]")){var c=shipCalc(x,d.recv),o=O(x);t.disabled=true;t.textContent="儲存中…";
+    api({action:"shipSave",id:x.id,no:o.no,site:o.site,recv:d.recv,status:c.status,note:($("shNote")||{}).value||""}).then(function(j){if(!j.ok)throw new Error(j.error);S.ships[x.id]=j.ship;S.shipD=null;toast("已儲存："+(c.status||"未核對"));render()}).catch(function(err){t.disabled=false;t.textContent="💾 儲存核對結果";toast("儲存失敗："+(err.message||err))});return true}
+  return false;
+}
+function shipInput(e){if(S.page!=="ship"||!S.shipD)return false;var t=e.target;
+  if(t.dataset.recv!==undefined){S.shipD.recv[t.dataset.recv]=t.value===""?"":+t.value;delete S.shipD.sug[t.dataset.recv];S.shipD.dirty=true;return true}
+  if(t.id==="shNote"){S.shipD.note=t.value;S.shipD.dirty=true;return true}return false}
+function shipChange(e){if(S.page!=="ship")return false;var t=e.target;
+  if(t.id==="shSite"){S.shipF.site=t.value;render();return true}
+  if(t.dataset.recv!==undefined){shipRefresh();return true}
+  if(t.id==="shFile"){var x=S.orders.filter(function(o){return o.id===S.shipSel})[0],d=S.shipD,files=[].slice.call(t.files||[]);if(!x||!d||!files.length)return true;var o=O(x);
+    d.msg="上傳照片中，並讀取照片上的字（每張約 10～20 秒）…";shipRefresh();
+    files.reduce(function(p,f){return p.then(function(){return resizeImg(f)}).then(function(url){return api({action:"shipPhoto",id:x.id,no:o.no,site:o.site,mime:"image/jpeg",data:url.split(",")[1]}).then(function(j){if(!j.ok)throw new Error(j.error);S.img=S.img||{};S.img[j.fileId]=url;S.ships[x.id]=j.ship;if(j.text)d.text=(d.text?d.text+"\n":"")+j.text})})},Promise.resolve())
+    .then(function(){if(d.text)applyOcr(x,d,d.text);else d.msg="照片已上傳，但沒有讀到文字（可能太模糊或是手寫），請手動填數量。";shipRefresh()})
+    .catch(function(err){d.msg="上傳失敗："+esc(err.message||err);shipRefresh()});return true}
+  return false}
 
 // ---------- 工地資料 ----------
 function pSites(){
@@ -307,7 +415,7 @@ function pUser(){
 var SOON={ship:["出貨核對","收貨時拍出貨單，照片存到 Google 雲端硬碟（依工地、月份分資料夾），系統比對叫料數量，少送、多送會列進待辦。"],cmp:["比價下單","採購把叫料單送給廠商比價，參考「案場採購紀錄」的合約廠商和折數，選定後下單。"],bill:["帳單核對","把廠商月結帳單和出貨單、下單價格對帳，算出各廠商本月計價金額和出錯率，顯示在首頁。"],price:["價目表","整理所有廠商報價單、牌價、折數，查某個品項各家價格。"]};
 function pSoon(){var s=SOON[S.page]||["建置中",""];return hero("下一階段",s[0],[])+'<div class="content"><div class="panel"><div class="note" style="margin:18px"><b>這一頁還在做。</b><br>'+esc(s[1])+'</div></div></div>'}
 
-var PAGES={home:pHome,jl:pJL,newjl:pNew,hist:pHist,sum:pSum,sites:pSites,vendor:pVendor,user:pUser};
+var PAGES={ship:pShip,home:pHome,jl:pJL,newjl:pNew,hist:pHist,sum:pSum,sites:pSites,vendor:pVendor,user:pUser};
 
 // ---------- 對話框 ----------
 function field(id,label,val,extra){return '<label>'+esc(label)+'<input class="in" id="'+id+'" value="'+esc(val)+'" '+(extra||"")+'></label>'}
@@ -370,6 +478,7 @@ function onDlgClick(e){
 
 // ---------- 頁面上的點擊 ----------
 function onClick(e){
+  if(shipClick(e))return;
   var t,q=function(s){return e.target.closest(s)};
   if(t=q("[data-open]")){var x=S.orders.filter(function(o){return o.id===t.dataset.open})[0];if(x)orderDlg(x);return}
   if(t=q("[data-gosite]")){S.filt={site:t.dataset.gosite,who:"",month:MONTH,q:""};S.page="jl";render();return}
@@ -388,11 +497,13 @@ function onClick(e){
 }
 var tmr;
 function onInput(e){
+  if(shipInput(e))return;
   var id=e.target.id;
   if(id==="fq"||id==="vq"){clearTimeout(tmr);var v=e.target.value.trim();tmr=setTimeout(function(){if(id==="fq")S.filt.q=v;else S.vq=v;render();var el=$(id);if(el){el.focus();el.setSelectionRange(el.value.length,el.value.length)}},350)}
   if(id==="siteQ"){var v2=e.target.value.trim();document.querySelectorAll("#page tr[data-row]").forEach(function(r){r.style.display=!v2||r.textContent.indexOf(v2)>=0?"":"none"})}
 }
 function onChange(e){
+  if(shipChange(e))return;
   var id=e.target.id;
   if(id==="fsite"){S.filt.site=e.target.value;render()}
   if(id==="fwho"){S.filt.who=e.target.value;render()}

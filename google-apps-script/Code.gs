@@ -222,6 +222,12 @@ function doPost(e) {
       if (body.action === "saveRow") lock.waitLock(25000);
       return json_(body.action === "table" ? getTable_(body.name) : saveRow_(body, who));
     }
+    // 電腦版：出貨核對（照片存雲端硬碟、照片判讀；只有管理員）
+    if (/^ship/.test(String(body.action))) {
+      if (!auth.admin) return json_({ ok: false, error: "只有管理員可以做出貨核對" });
+      if (body.action !== "shipList" && body.action !== "shipImg") lock.waitLock(25000);
+      return json_(ship_(body, who));
+    }
     if (body.action === "saveSites") {
       lock.waitLock(25000);
       return json_({ ok: true, sites: saveSites_(book_(), body.sites || [], who) });
@@ -722,4 +728,108 @@ function saveRow_(body, who) {
   sh.getRange(row, 1, 1, head.length).setValues([cur]);
   sh.getRange(row, head.indexOf(DEL_COL) + 1).insertCheckboxes();
   return getTable_(String(body.name));
+}
+
+// ---------- 電腦版：出貨核對 ----------
+// 試算表「出貨核對」分頁一張叫料單一列；照片存在雲端硬碟「叫料小幫手_出貨照片／工地／年-月」資料夾，只有這個 Google 帳號看得到。
+var SH_SHIP = "出貨核對";
+var SHIP_HEAD = ["訂單ID", "單號", "工地", "狀態", "核對人", "核對時間", "備註", "照片（檔案ID）", "到貨數量（程式用）", "照片判讀文字"];
+var SHIP_ROOT = "叫料小幫手_出貨照片";
+function shipSheet_() { return ensureSheet_(book_(), SH_SHIP, SHIP_HEAD); }
+function shipRows_(sh) {
+  var n = sh.getLastRow() - 1;
+  return n > 0 ? sh.getRange(2, 1, n, SHIP_HEAD.length).getValues() : [];
+}
+function shipRec_(r) {
+  var recv = {};
+  try { recv = JSON.parse(r[8] || "{}"); } catch (e) {}
+  return { id: String(r[0]), no: String(r[1]), site: String(r[2]), status: String(r[3]), who: String(r[4]),
+    at: r[5] instanceof Date ? Utilities.formatDate(r[5], "Asia/Taipei", "yyyy-MM-dd HH:mm") : String(r[5]),
+    note: String(r[6]), photos: String(r[7]).split(",").filter(String), recv: recv, text: String(r[9] || "") };
+}
+function shipFind_(sh, id) {
+  var rows = shipRows_(sh);
+  for (var i = 0; i < rows.length; i++) if (String(rows[i][0]) === String(id)) return { row: i + 2, r: rows[i] };
+  return null;
+}
+function shipPut_(sh, body, f, patch) {
+  var r = f ? f.r : [String(body.id), "", "", "", "", "", "", "", "{}", ""];
+  r[1] = String(body.no || r[1]); r[2] = String(body.site || r[2]);
+  patch(r);
+  var row = f ? f.row : sh.getLastRow() + 1;
+  sh.getRange(row, 1, 1, SHIP_HEAD.length).setNumberFormat("@").setValues([r.map(String)]);
+  return shipRec_(r);
+}
+function shipFolder_(site, month) {
+  var get = function (parent, name) {
+    var it = parent ? parent.getFoldersByName(name) : DriveApp.getFoldersByName(name);
+    return it.hasNext() ? it.next() : (parent ? parent.createFolder(name) : DriveApp.createFolder(name));
+  };
+  return get(get(get(null, SHIP_ROOT), site || "未填工地"), month);
+}
+// 用 Google 雲端硬碟內建的文字辨識讀照片上的字（印刷字比較準，手寫的要人工確認）
+function shipOcr_(blob) {
+  var tok = ScriptApp.getOAuthToken(), bd = "jlbd" + Date.now();
+  var meta = JSON.stringify({ name: "ocr_tmp_" + Date.now(), mimeType: "application/vnd.google-apps.document" });
+  var payload = Utilities.newBlob("--" + bd + "\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n" + meta + "\r\n--" + bd + "\r\nContent-Type: " + blob.getContentType() + "\r\n\r\n").getBytes()
+    .concat(blob.getBytes()).concat(Utilities.newBlob("\r\n--" + bd + "--").getBytes());
+  var res = UrlFetchApp.fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&ocrLanguage=zh-TW", {
+    method: "post", contentType: "multipart/related; boundary=" + bd, payload: payload, headers: { Authorization: "Bearer " + tok }, muteHttpExceptions: true });
+  var doc = JSON.parse(res.getContentText());
+  if (!doc.id) return "";
+  var txt = UrlFetchApp.fetch("https://www.googleapis.com/drive/v3/files/" + doc.id + "/export?mimeType=text/plain", { headers: { Authorization: "Bearer " + tok }, muteHttpExceptions: true }).getContentText("UTF-8");
+  try { DriveApp.getFileById(doc.id).setTrashed(true); } catch (e) {}
+  return String(txt || "").trim();
+}
+function ship_(body, who) {
+  var sh = shipSheet_(), now = Utilities.formatDate(new Date(), "Asia/Taipei", "yyyy-MM-dd HH:mm");
+  if (body.action === "shipList") {
+    var all = {};
+    shipRows_(sh).forEach(function (r) { if (r[0]) { var x = shipRec_(r); delete x.text; all[x.id] = x; } });
+    return { ok: true, ships: all };
+  }
+  var id = String(body.id || "");
+  if (!id) return { ok: false, error: "缺少叫料單" };
+  var f = shipFind_(sh, id);
+  if (body.action === "shipGet") return { ok: true, ship: f ? shipRec_(f.r) : null };
+  if (body.action === "shipSave") {
+    return { ok: true, ship: shipPut_(sh, body, f, function (r) {
+      r[3] = String(body.status || ""); r[4] = who; r[5] = now; r[6] = String(body.note || "");
+      r[8] = JSON.stringify(body.recv || {});
+    }) };
+  }
+  if (body.action === "shipPhoto") {
+    var data = String(body.data || "");
+    if (!data || data.length > 8000000) return { ok: false, error: "照片太大或是空的" };
+    var mime = /^image\/(jpeg|png|webp|heic)$/.test(body.mime) ? body.mime : "image/jpeg";
+    var month = now.slice(0, 7), site = String(body.site || (f && f.r[2]) || "");
+    var blob = Utilities.newBlob(Utilities.base64Decode(data), mime, (body.no || id) + "_" + now.replace(/[ :]/g, "") + ".jpg");
+    var file = shipFolder_(site, month).createFile(blob);
+    var text = "";
+    try { text = shipOcr_(blob); } catch (e) { text = ""; }
+    var rec = shipPut_(sh, body, f, function (r) {
+      r[7] = String(r[7]).split(",").filter(String).concat([file.getId()]).join(",");
+      if (text) r[9] = text.slice(0, 40000);
+    });
+    return { ok: true, ship: rec, fileId: file.getId(), text: text };
+  }
+  var fid = String(body.fileId || "");
+  if (!f || String(f.r[7]).split(",").indexOf(fid) < 0) return { ok: false, error: "找不到這張照片" };
+  if (body.action === "shipImg") {
+    var b = DriveApp.getFileById(fid).getBlob();
+    return { ok: true, mime: b.getContentType(), data: Utilities.base64Encode(b.getBytes()) };
+  }
+  if (body.action === "shipDelPhoto") {
+    try { DriveApp.getFileById(fid).setTrashed(true); } catch (e) {}
+    return { ok: true, ship: shipPut_(sh, body, f, function (r) {
+      r[7] = String(r[7]).split(",").filter(function (x) { return x && x !== fid; }).join(",");
+    }) };
+  }
+  return { ok: false, error: "未知的動作" };
+}
+// 第一次用出貨核對前，在編輯器選這個函式按「執行」，讓 Google 允許程式存取雲端硬碟。
+function authShip() {
+  DriveApp.getRootFolder();
+  UrlFetchApp.fetch("https://www.googleapis.com/drive/v3/about?fields=user", { headers: { Authorization: "Bearer " + ScriptApp.getOAuthToken() }, muteHttpExceptions: true });
+  shipSheet_();
 }
