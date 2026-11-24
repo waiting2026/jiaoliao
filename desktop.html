@@ -383,7 +383,9 @@ function pBatches(){var b={},o=[];(S_pr().rows||[]).forEach(function(r){var k=r[
   return o.map(function(k){return b[k]}).sort(function(a,b){return String(b.at).localeCompare(String(a.at))})}
 function pLogHtml(){var bs=pBatches().slice(0,400);
   if(!bs.length)return '<div class="empty">還沒有上傳紀錄</div>';
-  return '<div class="tw" style="max-height:calc(100vh - 280px)"><table><tr><th>上傳時間</th><th>上傳人</th><th>廠商</th><th>報價日期</th><th>來源檔</th><th class="n">筆數</th><th></th></tr>'+bs.map(function(x){return '<tr><td>'+esc(x.at)+'</td><td>'+esc(x.by)+'</td><td>'+esc(x.vendors.slice(0,3).join("、")+(x.vendors.length>3?"…":""))+'</td><td>'+esc(x.dates.slice(0,2).join("、")+(x.dates.length>2?"…":""))+'</td><td>'+(x.fid?'<button type="button" class="btn sm" data-prfile="'+esc(x.fid)+'">看原檔</button> ':'')+'<small>'+esc(x.src)+'</small></td><td class="n">'+x.ids.length+'</td><td><button type="button" class="btn sm danger" data-prdelb="'+esc(x.k)+'">刪除這批</button></td></tr>'}).join("")+'</table></div>';
+  var sel=S_pr().selB||(S_pr().selB={}),ks=bs.map(function(x){return x.k}),nSel=ks.filter(function(k){return sel[k]}).length,nRows=bs.filter(function(x){return sel[x.k]}).reduce(function(a,x){return a+x.ids.length},0);
+  return '<div class="f"><button type="button" class="btn danger" data-prdelsel="1" '+(nSel?'':'disabled')+'>刪除勾選的 '+nSel+' 批（'+nRows+' 筆）</button>'+(nSel?'<button type="button" class="btn" data-prselnone="1">取消勾選</button>':'')+'</div>'+
+   '<div class="tw" style="max-height:calc(100vh - 330px)"><table><tr><th style="width:36px"><input type="checkbox" id="prSelAll" aria-label="全選" '+(nSel&&nSel===ks.length?"checked":"")+'></th><th>上傳時間</th><th>上傳人</th><th>廠商</th><th>報價日期</th><th>來源檔</th><th class="n">筆數</th><th></th></tr>'+bs.map(function(x){return '<tr'+(sel[x.k]?' class="sel"':'')+'><td><input type="checkbox" data-prsel="'+esc(x.k)+'" aria-label="勾選這批" '+(sel[x.k]?"checked":"")+'></td><td>'+esc(x.at)+'</td><td>'+esc(x.by)+'</td><td>'+esc(x.vendors.slice(0,3).join("、")+(x.vendors.length>3?"…":""))+'</td><td>'+esc(x.dates.slice(0,2).join("、")+(x.dates.length>2?"…":""))+'</td><td>'+(x.fid?'<button type="button" class="btn sm" data-prfile="'+esc(x.fid)+'">看原檔</button> ':'')+'<small>'+esc(x.src)+'</small></td><td class="n">'+x.ids.length+'</td><td><button type="button" class="btn sm danger" data-prdelb="'+esc(x.k)+'">刪除這批</button></td></tr>'}).join("")+'</table></div>';
 }
 // 上傳報價單
 function pUpHtml(){
@@ -480,6 +482,8 @@ function priceClick(e){
   if(t=q("[data-prfile]")){pOpenFile(t.dataset.prfile);return true}
   if(t=q("[data-prtab]")){pUpRead();P.tab=t.dataset.prtab;render();return true}
   if(t=q("[data-prg]")){P.open=t.dataset.prg;pOpenDlg(pDetailHtml(P.open));return true}
+  if(t=q("[data-prselnone]")){P.selB={};render();return true}
+  if(t=q("[data-prdelsel]")){var bs2=pBatches().filter(function(x){return (P.selB||{})[x.k]}),ids2=[].concat.apply([],bs2.map(function(x){return x.ids}));if(ids2.length)pDel(ids2,t,"確定刪除勾選的 "+bs2.length+" 批、共 "+ids2.length+" 筆價格？\n（試算表裡的這些列會刪掉，雲端硬碟的原檔保留）");return true}
   if(t=q("[data-prdelb]")){var b=pBatches().filter(function(x){return x.k===t.dataset.prdelb})[0];if(b)pDel(b.ids,t,"確定刪除這一批 "+b.ids.length+" 筆價格？\n（試算表裡的這些列會刪掉，雲端硬碟的原檔保留）");return true}
   if(t=q("[data-pucancel]")){pUpRead();var u=P.up;P.up={vendor:u.vendor,date:u.date,proj:u.proj,step:"pick"};render();return true}
   if(t=q("[data-pusave]")){if(P.up.step==="ocr")pOcrRead();pSave(t.dataset.pusave,t);return true}
@@ -494,6 +498,8 @@ function priceInput(e){if(S.page!=="price")return false;var t=e.target,P=S_pr();
   return false}
 function priceChange(e){if(S.page!=="price")return false;var t=e.target,P=S_pr(),u=P.up;
   if(t.id==="prV"){P.v=t.value;render();return true}
+  if(t.id==="prSelAll"){var s={};if(t.checked)pBatches().slice(0,400).forEach(function(x){s[x.k]=1});P.selB=s;render();return true}
+  if(t.dataset&&t.dataset.prsel!=null){P.selB=P.selB||{};if(t.checked)P.selB[t.dataset.prsel]=1;else delete P.selB[t.dataset.prsel];render();return true}
   if(t.id==="puF"){pPick(t.files&&t.files[0]);return true}
   if(t.id==="puS"){u.sheet=t.value;pXlsSheet(u);render();return true}
   if(t.id==="puH"){pXlsSheet(u,Math.max(0,(+t.value||1)-1));render();return true}
