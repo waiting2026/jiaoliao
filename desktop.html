@@ -541,19 +541,34 @@ function C_matrix(){
     var nm=(C_rows(x.k)[0]||[])[PI.name]||x.k;return {x:x,i:i,name:nm,unit:(C_rows(x.k)[0]||[])[PI.unit]||"",ps:ps,min:min,by:by}});
   return {V:V,rows:rows,tot:tot,cnt:cnt,best:best,bestMiss:bestMiss,n:L.length};
 }
+// 從叫料單帶入：用品名＋尺寸去價目表找最像的品項（品名一定要對到，尺寸對到加分）
+function C_keys(){var seen={},out=[];(S_pr().rows||[]).forEach(function(r){var k=r.k||"(空白)";if(seen[k])return;seen[k]=1;var n=0;out.push({k:k,name:r[PI.name]})});return out}
+var C_FEN={"1":'1/8"',"2":'1/4"',"3":'3/8"',"4":'1/2"',"5":'5/8"',"6":'3/4"'};
+function C_norm(s){s=pKey(s).replace(/[°度]/g,"°").replace(/英吋|吋/g,'"').replace(/＂|″/g,'"').replace(/[*＊×xX]/g,"*").replace(/°l(?![a-z])/g,"°彎頭");
+  return s.replace(/^([1-6])分$/,function(m,a){return C_FEN[a]})}
+function C_match(l,keys){var nm=C_norm(l.name),sz=C_norm(l.size),br=C_norm(l.brand||"");if(!nm)return null;var best=null,bs=0;
+  keys.forEach(function(g){var t=C_norm(g.name),s=0;if(t.indexOf(nm)>=0)s=3;else return;if(sz){if(t.indexOf(sz)>=0)s+=3;else return}if(br&&t.indexOf(br)>=0)s+=1;s-=t.length/1000;if(s>bs){bs=s;best=g.k}});
+  return best}
+function C_fromOrder(id){var x=S.orders.filter(function(o){return o.id===id})[0];if(!x)return;var keys=C_keys(),L=C_list(),miss=[],n=0,o=O(x);
+  lines(x).forEach(function(l){var k=C_match(l,keys),lb=((l.brand?l.brand+" ":"")+(l.name||"")+" "+(l.size||"")).trim();if(!k){miss.push(lb);return}
+    var ex=L.filter(function(y){return y.k===k})[0];if(ex)ex.qty=String((+ex.qty||0)+(+l.qty||0));else L.push({k:k,qty:String(+l.qty||""),from:lb});n++});
+  S_pr().cmiss={no:o.no||"",site:o.site||"",list:miss,n:n};C_save();render()}
 function pCmpPage(){
   var P=S_pr();
   if(!P.rows&&!P.err){loadPrice().then(function(){if(S.page==="pcmp")render()});return hero("採購","查比價",[])+'<div class="spin">讀取價目表中…</div>'}
   if(P.err)return hero("採購","查比價",[])+'<div class="content"><div class="panel"><div class="warn">讀取失敗：'+esc(P.err)+'</div></div></div>';
   var M=C_matrix(),r2=function(n){return Math.round(n*100)/100};
-  var left='<div class="panel"><div class="f"><input class="in grow" id="cQ" type="search" placeholder="找品項，例如：10K法蘭 2-1/2" value="'+esc(P.cq||"")+'" aria-label="找品項"></div><div id="cRes" class="cmpl">'+C_resHtml()+'</div></div>';
+  var ords=S.orders.slice(0,200),cm=P.cmiss;
+  var left='<div class="panel"><div class="f" style="border-bottom:1px solid var(--line)"><select class="in grow" id="cOrd" aria-label="選叫料單"><option value="">從叫料單帶入…</option>'+ords.map(function(x){var o=O(x);return '<option value="'+esc(x.id)+'">'+esc((o.no||"")+"　"+(o.site||"")+"　"+(oDate(x)||"")+"（"+lines(x).length+" 項）")+'</option>'}).join("")+'</select></div>'+
+   (cm?'<div class="note" style="margin:10px 12px">已帶入叫料單 '+esc(cm.no)+'（'+esc(cm.site)+'）：對到 '+cm.n+' 項'+(cm.list.length?'，<b>'+cm.list.length+' 項在價目表找不到</b>，點一下可以搜尋看看：<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px">'+cm.list.map(function(s){return '<button type="button" class="btn sm" data-cfind="'+esc(s)+'">'+esc(s)+'</button>'}).join("")+'</div>':'。')+'<div style="margin-top:6px"><button type="button" class="btn sm" data-cmissx="1">知道了</button></div></div>':'')+
+   '<div class="f"><input class="in grow" id="cQ" type="search" placeholder="找品項，例如：10K法蘭 2-1/2" value="'+esc(P.cq||"")+'" aria-label="找品項"></div><div id="cRes" class="cmpl">'+C_resHtml()+'</div></div>';
   var right;
   if(!M.n)right='<div class="panel"><div class="empty" style="padding:60px 20px">← 從左邊找品項，按「＋」加入比價<br><small>每個品項填數量，會自動算出每家廠商的合計，最便宜的標綠色</small></div></div>';
   else{
     var V=M.V,cheapV=V.filter(function(v){return M.cnt[v]===M.n}).sort(function(a,b){return M.tot[a]-M.tot[b]})[0];
     right='<div class="panel"><div class="f"><b>比價表（'+M.n+' 項・'+V.length+' 家廠商）</b><div class="r"><button type="button" class="btn" data-cxls="1">匯出 Excel</button><button type="button" class="btn danger" data-cclr="1">清空</button></div></div>'+
     '<div class="tw" style="max-height:calc(100vh - 300px)"><table class="cmpt"><tr><th>品名規格</th><th class="n">數量</th>'+V.map(function(v){return '<th class="n">'+esc(v)+'</th>'}).join("")+'<th></th></tr>'+
-    M.rows.map(function(r){return '<tr><td><b>'+esc(r.name)+'</b>'+(r.unit?'<small>'+esc(r.unit)+'</small>':'')+'</td><td class="n"><input class="in" data-cqty="'+r.i+'" value="'+esc(r.x.qty)+'" style="width:72px;text-align:right" inputmode="decimal" aria-label="數量"></td>'+
+    M.rows.map(function(r){return '<tr><td><b>'+esc(r.name)+'</b>'+(r.unit?'<small>'+esc(r.unit)+'</small>':'')+(r.x.from?'<small>叫料單：'+esc(r.x.from)+'</small>':'')+'</td><td class="n"><input class="in" data-cqty="'+r.i+'" value="'+esc(r.x.qty)+'" style="width:72px;text-align:right" inputmode="decimal" aria-label="數量"></td>'+
       r.ps.map(function(p,j){var rr=r.by[V[j]];return '<td class="n'+(p!=null&&p===r.min&&V.length>1?' lo':'')+'">'+(p==null?'<span style="color:var(--mu)">—</span>':'<b>'+pMoney(p)+'</b><small>'+esc(rr.dk||rr[PI.date])+'</small>'+(+r.x.qty?'<small>小計 '+pMoney(r2(p*(+r.x.qty)))+'</small>':''))+'</td>'}).join("")+
       '<td><button type="button" class="btn sm" data-cdel="'+r.i+'" aria-label="移除">✕</button></td></tr>'}).join("")+
     '<tr class="cmpsum"><td>合計（未稅）</td><td></td>'+V.map(function(v){return '<td class="n'+(v===cheapV?' lo':'')+'"><b>'+pMoney(r2(M.tot[v]))+'</b><small>'+(M.cnt[v]===M.n?'全部有報':'缺 '+(M.n-M.cnt[v])+' 項')+'</small></td>'}).join("")+'<td></td></tr></table></div>'+
@@ -571,11 +586,14 @@ function cmpClick(e){if(S.page!=="pcmp")return false;var t,q=function(s){return 
   if(t=q("[data-cdel]")){L.splice(+t.dataset.cdel,1);C_save();render();return true}
   if(t=q("[data-cclr]")){if(confirm("要清空比價表嗎？")){S_pr().cmp=[];C_save();render()}return true}
   if(t=q("[data-cxls]")){C_xls();return true}
+  if(t=q("[data-cmissx]")){S_pr().cmiss=null;render();return true}
+  if(t=q("[data-cfind]")){var w=t.dataset.cfind.replace(/["“”]/g," ").split(/\s+/).filter(Boolean).slice(0,2).join(" ");S_pr().cq=w;var n2=$("cQ");if(n2){n2.value=w;$("cRes").innerHTML=C_resHtml();n2.focus()}return true}
   return false}
 function cmpInput(e){if(S.page!=="pcmp")return false;var t=e.target;
   if(t.id==="cQ"){if(e.isComposing)return true;S_pr().cq=t.value;$("cRes").innerHTML=C_resHtml();return true}
   return false}
 function cmpChange(e){if(S.page!=="pcmp")return false;var t=e.target;
+  if(t.id==="cOrd"){if(t.value)C_fromOrder(t.value);return true}
   if(t.dataset&&t.dataset.cqty!=null){var L=C_list();if(L[+t.dataset.cqty]){L[+t.dataset.cqty].qty=t.value.trim();C_save();render()}return true}
   return false}
 function cmpCompEnd(e){if(e.target.id==="cQ"){S_pr().cq=e.target.value;$("cRes").innerHTML=C_resHtml()}}
