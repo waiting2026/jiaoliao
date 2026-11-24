@@ -36,12 +36,17 @@ button,input,select,textarea{font:inherit;color:inherit}
 .me b{color:#fff;display:block;line-height:1.2}
 .me button{margin-left:auto;background:none;border:1px solid var(--side2);color:var(--sidetx);border-radius:8px;padding:2px 8px;cursor:pointer;font-size:12px}
 .main{min-width:0;display:flex;flex-direction:column}
-.topbar{background:#fff;border-bottom:1px solid var(--line);padding:10px 24px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.topbar{position:sticky;top:0;z-index:40;background:#fff;border-bottom:1px solid var(--line);padding:8px 24px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 .topbar .date{margin-left:auto;color:var(--mu)}
 .th-pick{display:flex;gap:6px;align-items:center;color:var(--mu);font-size:12px}
 .th-pick button{width:20px;height:20px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px #0002;cursor:pointer;padding:0}
 .th-pick button.on{box-shadow:0 0 0 2px var(--tx)}
-.hero{background:linear-gradient(110deg,var(--hero1),var(--hero2));color:var(--herotx);padding:20px 32px;border-bottom:1px solid var(--herob)}
+.hero{position:sticky;top:var(--tbh,49px);z-index:39;background:linear-gradient(110deg,var(--hero1),var(--hero2));color:var(--herotx);padding:14px 28px;border-bottom:1px solid var(--herob)}
+.hero.cp{padding:10px 26px}
+.hero .row{display:flex;align-items:center;gap:12px 16px;flex-wrap:wrap}
+.hero .row h1{margin:0;white-space:nowrap}
+.hero .row label{display:flex;align-items:center;gap:8px;font-weight:600;white-space:nowrap;margin:0}
+.hero .row .pills{margin:0 0 0 auto}
 .hero .eb{font-size:13px;opacity:.75}
 .hero h1{margin:2px 0;font-size:26px;font-weight:700}
 .pills{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
@@ -101,7 +106,7 @@ tr.sel td{background:var(--accl)}
 .grid2 label,.dlg label{display:block;font-size:13px;color:var(--mu)}
 .grid2 label .in,.dlg label .in{color:var(--tx);font-size:14px;margin-top:2px}
 .actions{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;padding-top:14px}
-.frame{width:100%;height:calc(100vh - 170px);min-height:600px;border:0;background:#fff;display:block}
+.frame{width:100%;height:calc(100vh - var(--hdr,170px) - 28px);min-height:480px;border:0;background:#fff;display:block}
 .gate{max-width:460px;margin:12vh auto;background:#fff;border-radius:20px;padding:28px;box-shadow:0 10px 40px #1a2a4018;text-align:center}
 .gate h1{font-size:22px;margin:0 0 8px}
 .bell.hot{background:#fff4e5;border-color:#f0a94a;color:#9a5300}.bell b{display:inline-block;min-width:18px;padding:0 5px;margin-left:4px;border-radius:9px;background:#e0533d;color:#fff;font-size:12px}
@@ -207,7 +212,12 @@ function render(){
   if(S.page==="user"&&!S.users)loadUsers().then(render);
   renderDlg();
   paintBell();
+  setHdr();
 }
+// 記下上方固定區塊的高度，讓標題列貼在工具列下面、內嵌畫面剛好填滿
+function setHdr(){var tb=document.querySelector(".topbar"),h=document.querySelector("#page .hero"),r=document.documentElement.style;if(!tb)return;
+  r.setProperty("--tbh",tb.offsetHeight+"px");r.setProperty("--hdr",(tb.offsetHeight+(h?h.offsetHeight:0))+"px")}
+addEventListener("resize",setHdr);
 
 // ---------- 首頁儀表板 ----------
 function pHome(){
@@ -268,11 +278,11 @@ function orderDlg(x){
 
 // ---------- 手動叫料：直接用手機版全部功能 ----------
 function pNew(){
-  return '<div class="hero"><div class="eb">工地管理</div><div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap"><h1>手動叫料</h1><label style="display:flex;align-items:center;gap:8px;font-weight:600;white-space:nowrap">工地<select class="in" id="njSite" aria-label="工地" style="min-width:220px"><option>讀取中…</option></select></label><label style="display:flex;align-items:center;gap:8px;font-weight:600;white-space:nowrap">搜尋<input class="in" id="njQ" type="search" aria-label="搜尋品名或關鍵字" placeholder="品名或關鍵字，例如：B管 2&quot;、球塞閥" style="min-width:300px"></label></div><div class="pills"><span>左：叫料單資料　中：點料　右：叫料單</span><span>存檔後同步到試算表</span><span>工地、收貨人請到「工地資料」修改</span></div></div>'+
-    '<div class="content" style="padding-top:14px"><div class="panel"><iframe class="frame" id="njFrame" src="index.html?embed=1" title="叫料小幫手"></iframe></div></div>';
+  return '<div class="hero cp"><div class="row"><h1>手動叫料</h1><label>工地<select class="in" id="njSite" aria-label="工地" style="min-width:200px"><option>讀取中…</option></select></label><label>搜尋<input class="in" id="njQ" type="search" aria-label="搜尋品名或關鍵字" placeholder="品名或關鍵字，例如：B管 2&quot;、球塞閥" style="min-width:280px"></label><div class="pills"><span>存檔後同步到試算表</span><span>工地、收貨人請到「工地資料」修改</span></div></div></div>'+
+    '<div class="content" style="padding-top:12px;padding-bottom:12px"><div class="panel"><iframe class="frame" id="njFrame" src="index.html?embed=1" title="叫料小幫手"></iframe></div></div>';
 }
 // 叫料紀錄、叫料統計：和手機版「紀錄」「統計」同一份資料
-function siteHero(t,pills){return '<div class="hero"><div class="eb">工地管理</div><div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap"><h1>'+esc(t)+'</h1><label style="display:flex;align-items:center;gap:8px;font-weight:600;white-space:nowrap">工地<select class="in" id="njSite" aria-label="工地" style="min-width:220px"><option>讀取中…</option></select></label></div><div class="pills">'+pills.map(function(p){return "<span>"+esc(p)+"</span>"}).join("")+'</div></div>'}
+function siteHero(t,pills){return '<div class="hero cp"><div class="row"><h1>'+esc(t)+'</h1><label>工地<select class="in" id="njSite" aria-label="工地" style="min-width:200px"><option>讀取中…</option></select></label><div class="pills">'+pills.map(function(p){return "<span>"+esc(p)+"</span>"}).join("")+'</div></div></div>'}
 function pHist(){return siteHero("叫料紀錄",["和手機版「紀錄」同一份","按「開啟」或「複製」會跳到手動叫料繼續編輯","可匯出當月總表"])+'<div class="content" style="padding-top:14px"><div class="panel"><iframe class="frame" id="njFrame" src="index.html?embed=1&view=hist" title="叫料紀錄"></iframe></div></div>'}
 function pSum(){return siteHero("叫料統計",["和手機版「統計」同一份","依工地、月份看叫了多少料"])+'<div class="content" style="padding-top:14px"><div class="panel"><iframe class="frame" id="njFrame" src="index.html?embed=1&view=sum" title="叫料統計"></iframe></div></div>'}
 // 內嵌頁要回到手動叫料時呼叫
