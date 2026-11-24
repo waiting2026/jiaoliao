@@ -155,7 +155,7 @@ function lines(x){return O(x).lines||[]}
 
 function load(){
   return api({action:"login"}).then(function(j){
-    if(!j.ok){gate("登入失效",j.error||"請重新登入","重新登入");throw 0}
+    if(!j.ok){var e=String(j.error||"");if(/不正確|停用|請輸入/.test(e)){var c0=cfg();jset(CFG_KEY,{who:c0.who,url:c0.url});location.replace("index.html");throw 0}gate("登入失效",e||"請重新登入","重新登入");throw 0}
     if(j.role!=="admin"){var cu=cfg();cu.role="user";jset(CFG_KEY,cu);try{sessionStorage.setItem("jl_mobile","1")}catch(e){}gate("這裡是管理員專用","你的帳號是助理，請用手機版叫料。","回手機版");throw 0}
     var c=cfg();c.role="admin";jset(CFG_KEY,c);
     return api({action:"pull",all:true});
