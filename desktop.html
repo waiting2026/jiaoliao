@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex">
-<title>工程叫料小幫手・電腦版</title>
+<title>聖和工程材料控管・電腦版</title>
 <link rel="icon" href="app-icon-192.png">
 <style>
 /* 電腦版管理介面：網頁本身不放任何資料，登入後才向後台（Google 試算表）拿，後台會檢查是不是管理員。 */
@@ -171,7 +171,7 @@ function load(){
 // ---------- 畫面骨架 ----------
 function shell(){
   var c=cfg();
-  $("root").innerHTML='<div class="app"><aside class="side"><div class="logo"><b>聖和工程<br>工程叫料小幫手</b><small>電腦版・管理員</small></div>'+
+  $("root").innerHTML='<div class="app"><aside class="side"><div class="logo"><b>聖和工程<br>材料控管</b><small>電腦版・管理員</small></div>'+
    NAV.map(function(g){return '<div class="grp">'+g[0]+'</div><div class="nav">'+g[1].map(function(n){return '<button type="button" data-p="'+n[0]+'">'+esc(n[1])+(n[2]?'<span class="soon">下一階段</span>':'')+'</button>'}).join("")+'</div>'}).join("")+
    '<div class="me"><span class="av">'+esc(String(c.who||"?").slice(0,1))+'</span><div><b>'+esc(c.who)+'</b><small>管理員</small></div><button type="button" id="logout">登出</button></div></aside>'+
    '<main class="main"><div class="topbar"><button class="btn sm" type="button" id="reload">⟳ 重新整理資料</button>'+bellHtml()+'<span id="lastLoad" style="color:var(--mu);font-size:12px"></span>'+
@@ -305,7 +305,7 @@ function checkNew(){
     if(fresh.length){
       var x=fresh[0],msg=(fresh.length>1?fresh.length+" 張新叫料單，":"")+x.who+" 叫料："+(O(x).site||"")+"（"+lines(x).length+" 項）";
       toast("🔔 "+msg);
-      try{if(window.Notification&&Notification.permission==="granted"){var n=new Notification("工程叫料小幫手：有新的叫料單",{body:msg,tag:"jl-new"});n.onclick=function(){window.focus();var b=$("bell");if(b)b.click()}}}catch(e){}
+      try{if(window.Notification&&Notification.permission==="granted"){var n=new Notification("聖和工程材料控管：有新的叫料單",{body:msg,tag:"jl-new"});n.onclick=function(){window.focus();var b=$("bell");if(b)b.click()}}}catch(e){}
       var a=document.activeElement;if((S.page==="home"||S.page==="jl")&&!S.dlg&&!(a&&/INPUT|SELECT|TEXTAREA/.test(a.tagName)))render();
     }
     paintBell();
