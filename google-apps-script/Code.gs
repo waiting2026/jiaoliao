@@ -223,6 +223,12 @@ function doPost(e) {
       return json_(body.action === "table" ? getTable_(body.name) : saveRow_(body, who));
     }
     // 電腦版：出貨核對（照片存雲端硬碟、照片判讀；只有管理員）
+    // 電腦版：價目表（只有管理員）
+    if (/^price/.test(String(body.action))) {
+      if (!auth.admin) return json_({ ok: false, error: "只有管理員可以看價目表" });
+      if (body.action !== "priceList" && body.action !== "priceGetFile" && body.action !== "priceFile") lock.waitLock(25000);
+      return json_(price_(body, who));
+    }
     if (/^ship/.test(String(body.action))) {
       if (!auth.admin) return json_({ ok: false, error: "只有管理員可以做出貨核對" });
       if (body.action !== "shipList" && body.action !== "shipImg") lock.waitLock(25000);
@@ -832,4 +838,95 @@ function authShip() {
   DriveApp.getRootFolder();
   UrlFetchApp.fetch("https://www.googleapis.com/drive/v3/about?fields=user", { headers: { Authorization: "Bearer " + ScriptApp.getOAuthToken() }, muteHttpExceptions: true });
   shipSheet_();
+}
+
+// ---------- 電腦版：價目表 ----------
+// 試算表「價目表」分頁一列一個「廠商 × 品項」的價格；原始報價單檔案存在雲端硬碟「叫料小幫手_報價單／廠商／民國年」。只有管理員能用。
+var SH_PRICE = "價目表";
+var PRICE_HEAD = ["編號", "廠商", "日期", "品名規格", "材質", "尺寸", "規格標準", "單位", "單價", "牌價", "折數", "工地／報價單號", "來源檔", "雲端檔案ID", "資料狀態／備註", "上傳人", "上傳時間"];
+var PRICE_ROOT = "叫料小幫手_報價單";
+function priceSheet_() {
+  var sh = ensureSheet_(book_(), SH_PRICE, PRICE_HEAD);
+  if (sh.getFrozenRows() < 1) sh.setFrozenRows(1);
+  return sh;
+}
+function priceRows_(sh) {
+  var n = sh.getLastRow() - 1;
+  return n > 0 ? sh.getRange(2, 1, n, PRICE_HEAD.length).getValues() : [];
+}
+function priceWrite_(sh, row, rows) {
+  if (!rows.length) return;
+  var rg = sh.getRange(row, 1, rows.length, PRICE_HEAD.length);
+  rg.setNumberFormat("@");
+  sh.getRange(row, 9, rows.length, 3).setNumberFormat("#,##0.####");
+  rg.setValues(rows.map(function (r) {
+    return PRICE_HEAD.map(function (h, i) {
+      var v = r[i] == null ? "" : r[i];
+      if (v instanceof Date) v = Utilities.formatDate(v, "Asia/Taipei", "yyyy-MM-dd HH:mm");
+      if (i >= 8 && i <= 10) { var n = Number(String(v).replace(/[,\s]/g, "")); return String(v).trim() !== "" && isFinite(n) ? n : String(v); }
+      return String(v);
+    });
+  }));
+}
+function priceFolder_(vendor, date) {
+  var get = function (parent, name) {
+    var it = parent ? parent.getFoldersByName(name) : DriveApp.getFoldersByName(name);
+    return it.hasNext() ? it.next() : (parent ? parent.createFolder(name) : DriveApp.createFolder(name));
+  };
+  var y = (String(date || "").match(/^\d{2,3}/) || [String(new Date().getFullYear() - 1911)])[0];
+  return get(get(get(null, PRICE_ROOT), vendor || "未填廠商"), y + "年");
+}
+function price_(body, who) {
+  var sh = priceSheet_(), now = Utilities.formatDate(new Date(), "Asia/Taipei", "yyyy-MM-dd HH:mm");
+  if (body.action === "priceList") {
+    return { ok: true, head: PRICE_HEAD, rows: priceRows_(sh).filter(function (r) { return r[0]; }).map(function (r) {
+      return r.map(function (v) { return v instanceof Date ? Utilities.formatDate(v, "Asia/Taipei", "yyyy-MM-dd HH:mm") : v; });
+    }) };
+  }
+  if (body.action === "priceFile") {
+    var data = String(body.data || "");
+    if (!data || data.length > 30000000) return { ok: false, error: "檔案太大或是空的（上限約 20MB）" };
+    var mime = String(body.mime || "application/octet-stream");
+    var blob = Utilities.newBlob(Utilities.base64Decode(data), mime, String(body.name || ("報價單_" + now.replace(/[ :]/g, ""))));
+    var file = priceFolder_(String(body.vendor || ""), String(body.date || "")).createFile(blob);
+    var text = "";
+    if (body.ocr && /^image\/|^application\/pdf$/.test(mime)) { try { text = shipOcr_(blob); } catch (e) { text = ""; } }
+    return { ok: true, fileId: file.getId(), name: file.getName(), text: text };
+  }
+  if (body.action === "priceGetFile") {
+    var fid = String(body.fileId || ""), okf = priceRows_(sh).some(function (r) { return String(r[13]) === fid; });
+    if (!fid || !okf) return { ok: false, error: "找不到這個檔案" };
+    var b = DriveApp.getFileById(fid).getBlob();
+    return { ok: true, mime: b.getContentType(), name: b.getName(), data: Utilities.base64Encode(b.getBytes()) };
+  }
+  if (body.action === "priceAdd") {
+    var add = (body.rows || []).slice(0, 2000), base = "P" + Date.now().toString(36);
+    var rows = add.map(function (v, i) {
+      var r = PRICE_HEAD.map(function (h, k) { return v[k] == null ? "" : v[k]; });
+      r[0] = base + "-" + i; r[15] = who; r[16] = now;
+      return r;
+    }).filter(function (r) { return String(r[3]).trim(); });
+    priceWrite_(sh, sh.getLastRow() + 1, rows);
+    return { ok: true, added: rows.length, ids: rows.map(function (r) { return r[0]; }) };
+  }
+  if (body.action === "priceSave") {
+    var all = priceRows_(sh), id = String(body.id || "");
+    for (var i = 0; i < all.length; i++) if (String(all[i][0]) === id) {
+      var r = all[i].slice(), v = body.v || [];
+      for (var k = 1; k <= 14; k++) if (v[k] != null) r[k] = v[k];
+      r[15] = who; r[16] = now;
+      priceWrite_(sh, i + 2, [r]);
+      return { ok: true };
+    }
+    return { ok: false, error: "找不到這一筆" };
+  }
+  if (body.action === "priceDel") {
+    var ids = {}; (body.ids || []).forEach(function (x) { ids[String(x)] = 1; });
+    var all2 = priceRows_(sh), keep = all2.filter(function (r) { return !ids[String(r[0])]; }), n = all2.length - keep.length;
+    if (!n) return { ok: true, deleted: 0 };
+    if (n <= 10) { for (var j = all2.length - 1; j >= 0; j--) if (ids[String(all2[j][0])]) sh.deleteRow(j + 2); }
+    else { sh.getRange(2, 1, all2.length, PRICE_HEAD.length).clearContent(); priceWrite_(sh, 2, keep); }
+    return { ok: true, deleted: n };
+  }
+  return { ok: false, error: "未知的動作" };
 }

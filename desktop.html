@@ -108,6 +108,9 @@ tr.sel td{background:var(--accl)}
 #bellPop{position:fixed;top:58px;right:24px;width:380px;max-height:70vh;overflow:auto;background:#fff;border:1px solid #e5e7eb;border-radius:14px;box-shadow:0 12px 32px #0002;z-index:55;padding:10px 12px}
 #bellPop .bp-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}#bellPop .bp-i{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 0;border-top:1px solid #eef0f3}
 #bellPop .bp-i small{display:block;color:#6b7280;font-size:12px}#bellPop .bp-e{color:#6b7280;margin:10px 0}#bellPop .bp-f{margin-top:6px}
+.prc{display:inline-flex;align-items:baseline;gap:4px;border:1px solid var(--line);border-radius:99px;padding:1px 10px;margin:2px 4px 2px 0;font-size:13px;white-space:nowrap}.prc small{color:var(--mu);font-size:11px}.prc.lo{background:var(--greenl);border-color:var(--green);color:var(--green)}
+.drop{display:flex;flex-direction:column;align-items:center;gap:6px;margin:12px 18px 18px;padding:46px 20px;border:2px dashed var(--line);border-radius:18px;cursor:pointer;text-align:center;color:var(--tx)}.drop small{color:var(--mu)}.drop:hover,.drop.over{border-color:var(--acc);background:var(--accl)}
+.pmap{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px 14px;padding:4px 18px 12px}.pmap label{font-size:13px;color:var(--mu)}
 .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#2f4059;color:#fff;padding:10px 18px;border-radius:12px;z-index:60;box-shadow:0 8px 24px #0003}
 .spin{color:var(--mu);padding:40px;text-align:center}
 </style>
@@ -141,7 +144,7 @@ touch();
 
 // ---------- 狀態 ----------
 var S={page:"home",orders:[],deleted:[],sites:[],users:null,tables:{},filt:{site:"",who:"",month:"",q:"",tab:"list"},siteTab:"list",vTab:"常用廠商名單",vq:"",vcat:"全部",vDel:false,dlg:null};
-var NAV=[["工地管理",[["home","首頁儀表板"],["jl","進料管理"],["newjl","手動叫料"],["hist","叫料紀錄"],["sum","叫料統計"],["ship","出貨核對"],["cmp","比價下單",1],["bill","帳單核對",1],["price","價目表",1]]],
+var NAV=[["工地管理",[["home","首頁儀表板"],["jl","進料管理"],["newjl","手動叫料"],["hist","叫料紀錄"],["sum","叫料統計"],["ship","出貨核對"],["cmp","比價下單",1],["bill","帳單核對",1],["price","價目表"]]],
  ["基本資料",[["sites","工地資料（收貨人）"],["vendor","廠商資料"]]],
  ["系統",[["user","使用者管理"],["phone","切換到手機版"]]]];
 var now=new Date();
@@ -185,6 +188,9 @@ function shell(){
   $("page").addEventListener("click",onClick);$("page").addEventListener("input",onInput);$("page").addEventListener("change",onChange);
   $("dlgHost").addEventListener("click",onDlgClick);
   document.addEventListener("click",bellClick);
+  document.addEventListener("click",priceDocClick);
+  $("page").addEventListener("compositionend",priceCompEnd);
+  ["dragover","dragleave","drop"].forEach(function(ev){$("page").addEventListener(ev,priceDrop)});
 }
 function setTheme(k){document.documentElement.dataset.theme=k==="霧藍"?"":k;document.querySelectorAll("[data-th]").forEach(function(b){b.classList.toggle("on",b.dataset.th===k)});try{localStorage.setItem("jl_desk_theme",k)}catch(e){}}
 function hero(eb,title,pills){return '<div class="hero"><div class="eb">'+esc(eb)+'</div><h1>'+esc(title)+'</h1>'+(pills&&pills.length?'<div class="pills">'+pills.map(function(p){return '<span>'+esc(p)+'</span>'}).join("")+'</div>':'')+'</div>'}
@@ -311,6 +317,191 @@ function checkNew(){
     paintBell();
   }).catch(function(){});
 }
+
+// ---------- 價目表 ----------
+// 試算表「價目表」分頁：一列一個「廠商 × 品項」的價格。上傳 Excel 會自動對欄位；PDF／照片用文字辨識，讀完要人工確認。只有管理員看得到。
+var PI={id:0,vendor:1,date:2,name:3,mat:4,size:5,std:6,unit:7,price:8,list:9,disc:10,proj:11,src:12,fid:13,note:14,by:15,at:16};
+var PFIELDS=[["name","品名規格",1],["spec","規格／型號"],["size","尺寸"],["mat","材質"],["std","規格標準"],["unit","單位"],["price","單價（實價）"],["list","牌價"],["disc","折數"],["vendor","廠商（每列不同時）"],["date","日期（每列不同時）"],["proj","工地／報價單號"],["note","備註"]];
+var PKEY={list:/牌價|定價|原價|list/i,disc:/折數|折扣|^折$/,std:/規格標準|標準/,name:/品名|品項|名稱|項目|description|item/i,spec:/規格|型號|料號/,size:/尺寸|口徑|管徑|size/i,mat:/材質/,unit:/單位|unit/i,price:/單價|實價|售價|價格|price/i,vendor:/廠商|供應商/,date:/日期|年月/,proj:/工地|專案|報價單號|單號/,note:/備註|狀態/};
+var PTOTAL=/^(合計|小計|總計|總價|總金額|營業稅|稅額|含稅|未稅|運費)/;
+function S_pr(){return S.pr||(S.pr={rows:null,err:"",tab:"find",q:"",v:"",latest:true,up:null,open:null})}
+function pNum(v){var n=Number(String(v==null?"":v).replace(/[,\s$元]/g,""));return String(v==null?"":v).trim()!==""&&isFinite(n)?n:null}
+function pPrice(r){var p=pNum(r[PI.price]);if(p!=null)return p;var l=pNum(r[PI.list]),d=pNum(r[PI.disc]);return l!=null&&d!=null?Math.round(l*(d>1.5?d/100:d)*100)/100:null}
+function pMoney(n){return n==null?"—":"$"+(Math.round(n*100)/100).toLocaleString()}
+function pKey(s){return String(s||"").toLowerCase().replace(/[\s　()（）]/g,"")}
+function pDateKey(s){var m=String(s||"").match(/(\d{2,4})\D(\d{1,2})(?:\D(\d{1,2}))?/);if(!m)return "";var y=+m[1];if(y>1900)y-=1911;return ("00"+y).slice(-3)+"."+("0"+m[2]).slice(-2)+(m[3]?"."+("0"+m[3]).slice(-2):"")}
+function rocToday(){var d=new Date();return (d.getFullYear()-1911)+"."+("0"+(d.getMonth()+1)).slice(-2)+"."+("0"+d.getDate()).slice(-2)}
+function loadPrice(){var P=S_pr();P.err="";return api({action:"priceList"}).then(function(j){if(!j.ok)throw new Error(j.error||"讀取失敗");
+  P.rows=(j.rows||[]).map(function(r){r=r.map(function(v){return v==null?"":v});r.k=pKey(r[PI.name]);r.t=[r[PI.vendor],r[PI.name],r[PI.mat],r[PI.size],r[PI.std],r[PI.proj]].join(" ").toLowerCase();r.dk=pDateKey(r[PI.date]);r.p=pPrice(r);return r});
+}).catch(function(e){P.err=String(e.message||e)})}
+function pVendors(){return (S_pr().rows||[]).map(function(r){return String(r[PI.vendor])}).filter(uniq).sort()}
+function pPricePage(){
+  var P=S_pr();
+  if(!P.rows&&!P.err){loadPrice().then(function(){if(S.page==="price")render()});return hero("採購","價目表",[])+'<div class="spin">讀取價目表中…</div>'}
+  if(P.err)return hero("採購","價目表",[])+'<div class="content"><div class="panel"><div class="warn">讀取失敗：'+esc(P.err)+'<br>如果寫「未知的動作」，代表後台還沒更新到有價目表的版本。</div></div></div>';
+  var vs=pVendors();
+  var tabs='<div class="tabs2">'+[["find","查價格"],["up","上傳報價單"],["log","上傳紀錄"]].map(function(t){return '<button type="button" data-prtab="'+t[0]+'" class="'+(P.tab===t[0]?"on":"")+'">'+t[1]+'</button>'}).join("")+'</div>';
+  var body=P.tab==="up"?pUpHtml():P.tab==="log"?pLogHtml():pFindHtml();
+  return hero("採購","價目表",["共 "+P.rows.length.toLocaleString()+" 筆價格","廠商 "+vs.length+" 家","只有管理員看得到","原始檔存在雲端硬碟「"+"叫料小幫手_報價單」"])+'<div class="content"><div class="panel">'+tabs+body+'</div></div>';
+}
+// 查價格：同一個品名規格放一列，各家廠商的最新價並排，最便宜的標綠色
+function pGroups(){
+  var P=S_pr(),terms=P.q.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  if(!terms.length&&!P.v)return null;
+  var g={},order=[];
+  P.rows.forEach(function(r){if(P.v&&r[PI.vendor]!==P.v)return;for(var i=0;i<terms.length;i++)if(r.t.indexOf(terms[i])<0)return;
+    var k=r.k||"(空白)";if(!g[k]){g[k]={k:k,name:r[PI.name],unit:r[PI.unit],rows:[]};order.push(k)}g[k].rows.push(r)});
+  return order.map(function(k){var x=g[k];x.rows.sort(function(a,b){return b.dk.localeCompare(a.dk)});
+    var by={};x.rows.forEach(function(r){var v=r[PI.vendor]||"未填";if(!by[v])by[v]=r});
+    x.best=Object.keys(by).map(function(v){return by[v]}).sort(function(a,b){return (a.p==null?1e15:a.p)-(b.p==null?1e15:b.p)});
+    x.min=x.best[0]&&x.best[0].p;return x}).sort(function(a,b){return String(a.name).localeCompare(String(b.name),"zh-Hant")});
+}
+function pFindHtml(){
+  var P=S_pr(),vs=pVendors();
+  var bar='<div class="f"><input class="in grow" id="prQ" type="search" placeholder="品名、規格或廠商，例如：球塞閥 1&quot;、U型螺絲 3/8" value="'+esc(P.q)+'" aria-label="搜尋價格"><select class="in" id="prV" aria-label="廠商"><option value="">全部廠商</option>'+vs.map(function(v){return '<option '+(v===P.v?"selected":"")+'>'+esc(v)+'</option>'}).join("")+'</select></div>';
+  return bar+'<div id="prRes">'+pResHtml()+'</div>';
+}
+function pResHtml(){
+  var gs=pGroups(),bar="";
+  if(!gs)return bar+'<div class="empty">輸入品名或選廠商開始查價格<br><small>多個關鍵字用空白隔開，例如「球塞閥 1"」</small></div>';
+  if(!gs.length)return bar+'<div class="empty">找不到符合的品項</div>';
+  var more=gs.length>300;gs=gs.slice(0,300);
+  return bar+'<div style="padding:0 18px 6px;color:var(--mu);font-size:13px">找到 '+gs.length+(more?"+":"")+' 個品項・每家廠商只列最新一筆・點一列看全部歷史價格</div><div class="tw" style="max-height:calc(100vh - 330px)"><table><tr><th>品名規格</th><th>單位</th><th class="n">最低價</th><th>各家廠商最新價</th><th class="n">筆數</th></tr>'+
+   gs.map(function(x){return '<tr class="click" data-prg="'+esc(x.k)+'"><td><b>'+esc(x.name)+'</b></td><td>'+esc(x.unit)+'</td><td class="n"><b style="color:var(--green)">'+pMoney(x.min)+'</b></td><td>'+x.best.map(function(r,i){return '<span class="prc'+(i===0&&r.p!=null&&x.best.length>1?' lo':'')+'">'+esc(r[PI.vendor]||"未填")+' <b>'+pMoney(r.p)+'</b><small>'+esc(r.dk||r[PI.date])+'</small></span>'}).join("")+'</td><td class="n">'+x.rows.length+'</td></tr>'}).join("")+'</table></div>'+(more?'<div class="empty">結果太多，只列前 300 個，請多打幾個字縮小範圍</div>':'');
+}
+function pDetailHtml(k){
+  var P=S_pr(),rows=P.rows.filter(function(r){return (r.k||"(空白)")===k}).sort(function(a,b){return b.dk.localeCompare(a.dk)||((a.p==null?1e15:a.p)-(b.p==null?1e15:b.p))});
+  if(!rows.length)return "";
+  return '<h2>'+esc(rows[0][PI.name])+'</h2><div class="tw" style="max-height:60vh"><table><tr><th>日期</th><th>廠商</th><th class="n">單價</th><th class="n">牌價</th><th class="n">折數</th><th>單位</th><th>來源</th><th></th></tr>'+
+   rows.map(function(r){var src=r[PI.fid]?'<button type="button" class="btn sm" data-prfile="'+esc(r[PI.fid])+'">看原檔</button>':'<small title="原檔在 NAS：05 報價單統計／廠商報價牌價整理">'+esc(r[PI.src]||"")+'</small>';
+     return '<tr><td>'+esc(r.dk||r[PI.date])+'</td><td>'+esc(r[PI.vendor])+'</td><td class="n"><b>'+pMoney(r.p)+'</b></td><td class="n">'+esc(r[PI.list])+'</td><td class="n">'+esc(r[PI.disc])+'</td><td>'+esc(r[PI.unit])+'</td><td>'+src+(r[PI.note]?'<small>'+esc(r[PI.note])+'</small>':'')+(r[PI.proj]?'<small>'+esc(r[PI.proj])+'</small>':'')+'</td><td><button type="button" class="btn sm danger" data-prdel1="'+esc(r[PI.id])+'">刪</button></td></tr>'}).join("")+
+   '</table></div><p style="font-size:12px;color:var(--mu);margin:8px 0 0">沒有「看原檔」按鈕的，是從「廠商報價牌價總表」匯入的資料，原檔在 NAS「05 報價單統計／廠商報價牌價整理」。要改數字可以直接到試算表「價目表」分頁改。</p><div class="actions"><button type="button" class="btn" data-prx="1">關閉</button></div>';
+}
+function pOpenDlg(html){var h=$("prDlg");if(!h){h=document.createElement("div");h.id="prDlg";document.body.appendChild(h)}h.innerHTML=html?'<div class="dlg-bg" data-prx="1"></div><div class="dlg" role="dialog" style="width:min(980px,calc(100vw - 32px))">'+html+'</div>':""}
+// 上傳紀錄：同一次上傳（同來源檔＋同上傳時間）算一批
+function pBatches(){var b={},o=[];(S_pr().rows||[]).forEach(function(r){var k=r[PI.at]+"|"+r[PI.src]+"|"+r[PI.fid];if(!b[k]){b[k]={k:k,at:r[PI.at],by:r[PI.by],src:r[PI.src],fid:r[PI.fid],vendors:[],dates:[],ids:[]};o.push(k)}var x=b[k];x.ids.push(r[PI.id]);if(x.vendors.indexOf(r[PI.vendor])<0)x.vendors.push(r[PI.vendor]);if(x.dates.indexOf(r.dk)<0)x.dates.push(r.dk)});
+  return o.map(function(k){return b[k]}).sort(function(a,b){return String(b.at).localeCompare(String(a.at))})}
+function pLogHtml(){var bs=pBatches().slice(0,400);
+  if(!bs.length)return '<div class="empty">還沒有上傳紀錄</div>';
+  return '<div class="tw" style="max-height:calc(100vh - 280px)"><table><tr><th>上傳時間</th><th>上傳人</th><th>廠商</th><th>報價日期</th><th>來源檔</th><th class="n">筆數</th><th></th></tr>'+bs.map(function(x){return '<tr><td>'+esc(x.at)+'</td><td>'+esc(x.by)+'</td><td>'+esc(x.vendors.slice(0,3).join("、")+(x.vendors.length>3?"…":""))+'</td><td>'+esc(x.dates.slice(0,2).join("、")+(x.dates.length>2?"…":""))+'</td><td>'+(x.fid?'<button type="button" class="btn sm" data-prfile="'+esc(x.fid)+'">看原檔</button> ':'')+'<small>'+esc(x.src)+'</small></td><td class="n">'+x.ids.length+'</td><td><button type="button" class="btn sm danger" data-prdelb="'+esc(x.k)+'">刪除這批</button></td></tr>'}).join("")+'</table></div>';
+}
+// 上傳報價單
+function pUpHtml(){
+  var P=S_pr(),u=P.up||(P.up={vendor:"",date:rocToday(),proj:"",step:"pick"});
+  var head='<div class="f"><label style="display:flex;gap:6px;align-items:center;font-weight:600">廠商<input class="in" id="puV" list="puVL" value="'+esc(u.vendor)+'" placeholder="例如：世鼎" style="width:180px"></label><datalist id="puVL">'+pVendors().map(function(v){return '<option value="'+esc(v)+'">'}).join("")+'</datalist>'+
+    '<label style="display:flex;gap:6px;align-items:center;font-weight:600">報價日期<input class="in" id="puD" value="'+esc(u.date)+'" placeholder="115.11.24" style="width:120px"></label>'+
+    '<label style="display:flex;gap:6px;align-items:center;font-weight:600">工地／報價單號<input class="in" id="puP" value="'+esc(u.proj)+'" placeholder="可不填" style="width:200px"></label></div>';
+  if(u.step==="busy")return head+'<div class="spin">'+esc(u.msg||"處理中…")+'</div>';
+  if(u.step==="xls")return head+pXlsHtml(u);
+  if(u.step==="ocr")return head+pOcrHtml(u);
+  return head+(u.err?'<div class="warn">'+esc(u.err)+'</div>':'')+'<label class="drop" id="puDrop"><input type="file" id="puF" accept=".xlsx,.xls,.csv,.pdf,image/*" hidden><b>把報價單拖到這裡，或點這裡選檔案</b><small>Excel（.xlsx／.xls／.csv）最準，會自動對欄位<br>PDF 或照片會用文字辨識，讀完要逐筆確認</small></label>';
+}
+function pLoadXlsx(){if(window.XLSX)return Promise.resolve();return new Promise(function(ok,no){var s=document.createElement("script");s.src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";s.onload=ok;s.onerror=function(){no(new Error("讀 Excel 的工具載入失敗，請確認網路"))};document.head.appendChild(s)})}
+function pReadFile(file,asText){return new Promise(function(ok,no){var fr=new FileReader();fr.onerror=function(){no(new Error("檔案讀取失敗"))};fr.onload=function(){ok(fr.result)};fr.readAsArrayBuffer(file)})}
+function b64(buf){var b=new Uint8Array(buf),s="",i;for(i=0;i<b.length;i+=32768)s+=String.fromCharCode.apply(null,b.subarray(i,i+32768));return btoa(s)}
+function pPick(file){
+  var P=S_pr(),u=P.up;pUpRead();u.err="";
+  if(!file)return;
+  if(!u.vendor.trim()){u.err="請先填廠商，再選檔案（每列都有廠商欄的總表可以填「多家」）";render();return}
+  if(file.size>20*1024*1024){u.err="檔案超過 20MB，請先壓縮或拆開";render();return}
+  u.file=file;
+  if(/\.(xlsx|xls|csv)$/i.test(file.name)){u.step="busy";u.msg="讀取 Excel 中…";render();
+    Promise.all([pLoadXlsx(),pReadFile(file)]).then(function(a){u.buf=a[1];var wb=XLSX.read(a[1],{type:"array"});u.wb=wb;u.sheet=wb.SheetNames[0];pXlsSheet(u);u.step="xls";render()}).catch(function(e){u.step="pick";u.err=String(e.message||e);render()});return}
+  if(/^image\/|pdf$/i.test(file.type)||/\.pdf$/i.test(file.name)){u.step="busy";u.msg="上傳並辨識文字中，照片大約要 10～30 秒…";render();
+    var prep=/^image\//.test(file.type)&&file.size>1500000?resizeImg(file).then(function(d){return {data:d.split(",")[1],mime:"image/jpeg"}}):pReadFile(file).then(function(buf){return {data:b64(buf),mime:file.type||"application/pdf"}});
+    prep.then(function(x){return api({action:"priceFile",name:file.name,mime:x.mime,data:x.data,vendor:u.vendor,date:u.date,ocr:true})}).then(function(j){if(!j.ok)throw new Error(j.error||"上傳失敗");
+      u.fid=j.fileId;u.src=j.name||file.name;u.text=j.text||"";u.lines=pOcrParse(u.text);u.step="ocr";render()}).catch(function(e){u.step="pick";u.err="上傳失敗："+(e.message||e);render()});return}
+  u.err="只能上傳 Excel、PDF 或照片";render();
+}
+function pUpRead(){var u=S_pr().up;if(!u)return;var a=$("puV"),b=$("puD"),c=$("puP");if(a)u.vendor=a.value.trim();if(b)u.date=b.value.trim();if(c)u.proj=c.value.trim()}
+// Excel：找表頭那一列，自動對欄位
+function pXlsSheet(u,hr){
+  var rows=XLSX.utils.sheet_to_json(u.wb.Sheets[u.sheet],{header:1,raw:false,defval:""});u.rows=rows;
+  var best=0,bs=-1;for(var i=0;i<Math.min(rows.length,25);i++){var sc=0;rows[i].forEach(function(c){c=String(c);for(var f in PKEY)if(PKEY[f].test(c)){sc++;break}});if(sc>bs){bs=sc;best=i}}
+  u.hr=hr!=null?hr:best;best=u.hr;u.map={};var used={};
+  ["list","disc","std","name","spec","size","mat","unit","price","vendor","date","proj","note"].forEach(function(f){var h=rows[best]||[];for(var c=0;c<h.length;c++){if(used[c])continue;var t=String(h[c]).trim();if(!t||/總價|金額|小計|數量|來源位置/.test(t))continue;if(f==="price"&&/牌價|定價/.test(t))continue;if(PKEY[f].test(t)){u.map[f]=c;used[c]=1;break}}});
+}
+function pXlsRows(u){
+  var m=u.map,out=[];
+  (u.rows||[]).slice(u.hr+1).forEach(function(r){var g=function(f){return m[f]==null?"":String(r[m[f]]==null?"":r[m[f]]).trim()};
+    var nm=(g("name")+" "+g("spec")).trim();if(!nm||PTOTAL.test(nm))return;var p=g("price"),l=g("list");if(pNum(p)==null&&pNum(l)==null)return;
+    var v=[];v[PI.vendor]=g("vendor")||u.vendor;v[PI.date]=pDateKey(g("date"))||pDateKey(u.date)||u.date;v[PI.name]=nm;v[PI.mat]=g("mat");v[PI.size]=g("size");v[PI.std]=g("std");v[PI.unit]=g("unit");v[PI.price]=p;v[PI.list]=l;v[PI.disc]=g("disc");v[PI.proj]=g("proj")||u.proj;v[PI.src]=u.file?u.file.name:"";v[PI.note]=g("note");out.push(v)});
+  return out;
+}
+function pXlsHtml(u){
+  var h=u.rows[u.hr]||[],cols=[];for(var c=0;c<Math.max(h.length,(u.rows[u.hr+1]||[]).length);c++)cols.push(c);
+  var colName=function(c){var s="",n=c+1;while(n){s=String.fromCharCode(65+(n-1)%26)+s;n=Math.floor((n-1)/26)}return s+(h[c]?"："+String(h[c]).slice(0,14):"")};
+  var rs=pXlsRows(u);
+  return '<div class="f"><b>'+esc(u.file.name)+'</b>'+(u.wb.SheetNames.length>1?'<label style="display:flex;gap:6px;align-items:center">工作表<select class="in" id="puS">'+u.wb.SheetNames.map(function(s){return '<option '+(s===u.sheet?"selected":"")+'>'+esc(s)+'</option>'}).join("")+'</select></label>':'')+
+   '<label style="display:flex;gap:6px;align-items:center">表頭在第<input class="in" id="puH" type="number" min="1" value="'+(u.hr+1)+'" style="width:70px">列</label></div>'+
+   '<div class="note">我自動對好欄位了，請確認下面每個欄位對到 Excel 的哪一欄（沒有的選「不用」）。至少要有「品名規格」，和「單價」或「牌價」其中一個。</div>'+
+   '<div class="pmap">'+PFIELDS.map(function(f){return '<label>'+esc(f[1])+(f[2]?' *':'')+'<select class="in" data-pumap="'+f[0]+'"><option value="">不用</option>'+cols.map(function(c){return '<option value="'+c+'" '+(u.map[f[0]]===c?"selected":"")+'>'+esc(colName(c))+'</option>'}).join("")+'</select></label>'}).join("")+'</div>'+
+   '<div style="padding:4px 18px;font-weight:700">預覽（共 '+rs.length+' 筆可以存，下面列前 30 筆）</div><div class="tw" style="max-height:320px"><table><tr><th>廠商</th><th>日期</th><th>品名規格</th><th>尺寸</th><th>單位</th><th class="n">單價</th><th class="n">牌價</th><th class="n">折數</th></tr>'+
+   rs.slice(0,30).map(function(v){return '<tr><td>'+esc(v[PI.vendor])+'</td><td>'+esc(v[PI.date])+'</td><td>'+esc(v[PI.name])+'</td><td>'+esc(v[PI.size])+'</td><td>'+esc(v[PI.unit])+'</td><td class="n">'+esc(v[PI.price])+'</td><td class="n">'+esc(v[PI.list])+'</td><td class="n">'+esc(v[PI.disc])+'</td></tr>'}).join("")+'</table></div>'+
+   '<div class="actions" style="padding:12px 18px"><button type="button" class="btn" data-pucancel="1">取消</button><button type="button" class="btn pri" data-pusave="xls" '+(rs.length?"":"disabled")+'>確認，存入價目表（'+rs.length+' 筆）</button></div>';
+}
+// 照片／PDF：每一行取「文字＋最後一個數字」當品名和單價，讓人逐筆確認
+function pOcrParse(text){
+  return String(text||"").split(/\n/).map(function(s){return s.replace(/\s+/g," ").trim()}).filter(function(s){return s&&/\d/.test(s)&&/[^\d\s.,$:：\-\/]/.test(s)}).slice(0,300).map(function(s){
+    var nums=s.match(/\d[\d,]*(\.\d+)?/g)||[],last=nums.length?nums[nums.length-1]:"";var nm=last?s.slice(0,s.lastIndexOf(last)).replace(/[$＄:：\s]+$/,"").trim():s;
+    var um=nm.match(/\s(支|個|只|PC|pc|件|M|m|米|組|套|盒|包|片|捲|台|顆|條|kg|KG)$/);var unit=um?um[1]:"";if(um)nm=nm.slice(0,-um[0].length).trim();
+    return {on:nm.length>=2&&!!last&&!PTOTAL.test(nm),name:nm||s,unit:unit,price:last.replace(/,/g,""),raw:s}});
+}
+function pOcrHtml(u){
+  var n=u.lines.filter(function(l){return l.on}).length;
+  return '<div class="note">照片／PDF 已存到雲端硬碟。下面是讀到的每一行，請勾選要存的、修正品名和單價（手寫或模糊的字常讀錯）。'+(u.lines.length?'':'<br><b>沒有讀到文字</b>，可以按「＋ 新增一列」自己輸入。')+'</div>'+
+   '<div class="tw" style="max-height:420px"><table><tr><th>存</th><th>品名規格</th><th>單位</th><th class="n">單價</th><th>原本讀到的字</th></tr>'+u.lines.map(function(l,i){return '<tr><td><input type="checkbox" data-pol="on" data-i="'+i+'" '+(l.on?"checked":"")+' aria-label="要存"></td><td><input class="in" data-pol="name" data-i="'+i+'" value="'+esc(l.name)+'"></td><td><input class="in" data-pol="unit" data-i="'+i+'" value="'+esc(l.unit)+'" style="width:70px"></td><td><input class="in" data-pol="price" data-i="'+i+'" value="'+esc(l.price)+'" style="width:100px;text-align:right"></td><td><small>'+esc(l.raw||"")+'</small></td></tr>'}).join("")+'</table></div>'+
+   '<div class="actions" style="padding:12px 18px"><button type="button" class="btn" data-poadd="1" style="margin-right:auto">＋ 新增一列</button><button type="button" class="btn" data-prfile="'+esc(u.fid)+'">看原檔</button><button type="button" class="btn" data-pucancel="1">取消</button><button type="button" class="btn pri" data-pusave="ocr">確認，存入價目表（'+n+' 筆）</button></div>';
+}
+function pSave(kind,btn){
+  var P=S_pr(),u=P.up;pUpRead();var rows;
+  if(kind==="xls")rows=pXlsRows(u);else rows=u.lines.filter(function(l){return l.on&&l.name.trim()}).map(function(l){var v=[];v[PI.vendor]=u.vendor;v[PI.date]=pDateKey(u.date)||u.date;v[PI.name]=l.name.trim();v[PI.unit]=l.unit;v[PI.price]=l.price;v[PI.proj]=u.proj;v[PI.src]=u.src;v[PI.fid]=u.fid;v[PI.note]="照片判讀，已人工確認";return v});
+  if(!rows.length){alert("沒有可以存的資料");return}
+  btn.disabled=true;btn.textContent="存檔中…";
+  var up=kind==="xls"?pReadFile(u.file).then(function(buf){return api({action:"priceFile",name:u.file.name,mime:u.file.type||"application/octet-stream",data:b64(buf),vendor:u.vendor,date:u.date})}).then(function(j){if(!j.ok)throw new Error(j.error||"原檔上傳失敗");rows.forEach(function(v){v[PI.fid]=j.fileId;v[PI.src]=j.name||v[PI.src]})}):Promise.resolve();
+  var i=0,done=0;
+  var next=function(){if(i>=rows.length)return Promise.resolve();var part=rows.slice(i,i+800);i+=800;btn.textContent="存檔中… "+Math.min(i,rows.length)+"/"+rows.length;return api({action:"priceAdd",rows:part}).then(function(j){if(!j.ok)throw new Error(j.error||"存檔失敗");done+=j.added;return next()})};
+  up.then(next).then(loadPrice).then(function(){P.up={vendor:"",date:rocToday(),proj:"",step:"pick"};P.tab="log";toast("已存入價目表 "+done+" 筆");render()}).catch(function(e){alert("存檔失敗："+(e.message||e)+(done?"\n（已經存進去 "+done+" 筆，請到「上傳紀錄」確認）":""));btn.disabled=false;btn.textContent="再試一次"});
+}
+function pOpenFile(fid){var w=window.open("","_blank");if(w)w.document.write("<p style='font:16px sans-serif;padding:20px'>讀取原檔中…</p>");
+  api({action:"priceGetFile",fileId:fid}).then(function(j){if(!j.ok)throw new Error(j.error);var bin=atob(j.data),a=new Uint8Array(bin.length);for(var i=0;i<bin.length;i++)a[i]=bin.charCodeAt(i);
+    var url=URL.createObjectURL(new Blob([a],{type:j.mime}));if(w&&/^image\/|pdf/.test(j.mime))w.location=url;else{if(w)w.close();var l=document.createElement("a");l.href=url;l.download=j.name||"報價單";document.body.appendChild(l);l.click();l.remove()}}).catch(function(e){if(w)w.close();alert("打不開原檔："+(e.message||e))})}
+function pDel(ids,btn,msg){if(!confirm(msg))return;if(btn){btn.disabled=true;btn.textContent="刪除中…"}
+  api({action:"priceDel",ids:ids}).then(function(j){if(!j.ok)throw new Error(j.error);return loadPrice().then(function(){toast("已刪除 "+j.deleted+" 筆");var P=S_pr();if(P.open){var h=pDetailHtml(P.open);if(!h)P.open=null;pOpenDlg(h)}render()})}).catch(function(e){alert("刪除失敗："+(e.message||e));if(btn)btn.disabled=false})}
+function priceClick(e){
+  var t,q=function(s){return e.target.closest(s)},P=S_pr();
+  if(S.page!=="price")return false;
+  if(t=q("[data-prfile]")){pOpenFile(t.dataset.prfile);return true}
+  if(t=q("[data-prtab]")){pUpRead();P.tab=t.dataset.prtab;render();return true}
+  if(t=q("[data-prg]")){P.open=t.dataset.prg;pOpenDlg(pDetailHtml(P.open));return true}
+  if(t=q("[data-prdelb]")){var b=pBatches().filter(function(x){return x.k===t.dataset.prdelb})[0];if(b)pDel(b.ids,t,"確定刪除這一批 "+b.ids.length+" 筆價格？\n（試算表裡的這些列會刪掉，雲端硬碟的原檔保留）");return true}
+  if(t=q("[data-pucancel]")){pUpRead();var u=P.up;P.up={vendor:u.vendor,date:u.date,proj:u.proj,step:"pick"};render();return true}
+  if(t=q("[data-pusave]")){if(P.up.step==="ocr")pOcrRead();pSave(t.dataset.pusave,t);return true}
+  if(t=q("[data-poadd]")){pOcrRead();P.up.lines.push({on:true,name:"",unit:"",price:"",raw:""});render();return true}
+  return false;
+}
+function pOcrRead(){var u=S_pr().up;document.querySelectorAll("[data-pol]").forEach(function(el){var l=u.lines[+el.dataset.i];if(!l)return;if(el.dataset.pol==="on")l.on=el.checked;else l[el.dataset.pol]=el.value})}
+function priceInput(e){if(S.page!=="price")return false;var t=e.target,P=S_pr();
+  if(t.id==="prQ"){if(e.isComposing)return true;P.q=t.value;var r=$("prRes");if(r)r.innerHTML=pResHtml();return true}
+  if(t.id==="puV"||t.id==="puD"||t.id==="puP"){pUpRead();return true}
+  if(t.dataset&&t.dataset.pol){pOcrRead();var b=document.querySelector("[data-pusave]");if(b)b.textContent="確認，存入價目表（"+P.up.lines.filter(function(l){return l.on}).length+" 筆）";return true}
+  return false}
+function priceChange(e){if(S.page!=="price")return false;var t=e.target,P=S_pr(),u=P.up;
+  if(t.id==="prV"){P.v=t.value;render();return true}
+  if(t.id==="puF"){pPick(t.files&&t.files[0]);return true}
+  if(t.id==="puS"){u.sheet=t.value;pXlsSheet(u);render();return true}
+  if(t.id==="puH"){pXlsSheet(u,Math.max(0,(+t.value||1)-1));render();return true}
+  if(t.dataset&&t.dataset.pumap){u.map[t.dataset.pumap]=t.value===""?null:+t.value;render();return true}
+  if(t.dataset&&t.dataset.pol){pOcrRead();var b=document.querySelector("[data-pusave]");if(b)b.textContent="確認，存入價目表（"+u.lines.filter(function(l){return l.on}).length+" 筆）";return true}
+  return false}
+function priceDrop(e){if(S.page!=="price"||!S_pr().up||S_pr().up.step!=="pick")return;var d=e.target.closest&&e.target.closest("#puDrop");if(!d)return;e.preventDefault();
+  if(e.type==="dragover"){d.classList.add("over");return}if(e.type==="dragleave"){d.classList.remove("over");return}
+  if(e.type==="drop"){d.classList.remove("over");pPick(e.dataTransfer.files&&e.dataTransfer.files[0])}}
+function priceDocClick(e){if(!e.target.closest("#prDlg"))return;var t,q=function(x){return e.target.closest(x)},P=S_pr();
+  if(t=q("[data-prfile]")){pOpenFile(t.dataset.prfile);return}
+  if(t=q("[data-prx]")){P.open=null;pOpenDlg("");return}
+  if(t=q("[data-prdel1]")){pDel([t.dataset.prdel1],t,"確定刪除這一筆價格？");return}}
+function priceCompEnd(e){if(e.target.id==="prQ"){S_pr().q=e.target.value;var r=$("prRes");if(r)r.innerHTML=pResHtml()}}
 
 // ---------- 出貨核對 ----------
 // 每張叫料單一筆核對紀錄：每個品項填到貨數量、上傳出貨單照片（存雲端硬碟），照片上的字會自動讀出來幫忙填數量。
@@ -464,7 +655,7 @@ function pUser(){
 var SOON={ship:["出貨核對","收貨時拍出貨單，照片存到 Google 雲端硬碟（依工地、月份分資料夾），系統比對叫料數量，少送、多送會列進待辦。"],cmp:["比價下單","採購把叫料單送給廠商比價，參考「案場採購紀錄」的合約廠商和折數，選定後下單。"],bill:["帳單核對","把廠商月結帳單和出貨單、下單價格對帳，算出各廠商本月計價金額和出錯率，顯示在首頁。"],price:["價目表","整理所有廠商報價單、牌價、折數，查某個品項各家價格。"]};
 function pSoon(){var s=SOON[S.page]||["建置中",""];return hero("下一階段",s[0],[])+'<div class="content"><div class="panel"><div class="note" style="margin:18px"><b>這一頁還在做。</b><br>'+esc(s[1])+'</div></div></div>'}
 
-var PAGES={ship:pShip,home:pHome,jl:pJL,newjl:pNew,hist:pHist,sum:pSum,sites:pSites,vendor:pVendor,user:pUser};
+var PAGES={price:pPricePage,ship:pShip,home:pHome,jl:pJL,newjl:pNew,hist:pHist,sum:pSum,sites:pSites,vendor:pVendor,user:pUser};
 
 // ---------- 對話框 ----------
 function field(id,label,val,extra){return '<label>'+esc(label)+'<input class="in" id="'+id+'" value="'+esc(val)+'" '+(extra||"")+'></label>'}
@@ -527,6 +718,7 @@ function onDlgClick(e){
 
 // ---------- 頁面上的點擊 ----------
 function onClick(e){
+  if(priceClick(e))return;
   if(shipClick(e))return;
   var t,q=function(s){return e.target.closest(s)};
   if(t=q("[data-open]")){var x=S.orders.filter(function(o){return o.id===t.dataset.open})[0];if(x)orderDlg(x);return}
@@ -546,12 +738,14 @@ function onClick(e){
 }
 var tmr;
 function onInput(e){
+  if(priceInput(e))return;
   if(shipInput(e))return;
   var id=e.target.id;
   if(id==="fq"||id==="vq"){clearTimeout(tmr);var v=e.target.value.trim();tmr=setTimeout(function(){if(id==="fq")S.filt.q=v;else S.vq=v;render();var el=$(id);if(el){el.focus();el.setSelectionRange(el.value.length,el.value.length)}},350)}
   if(id==="siteQ"){var v2=e.target.value.trim();document.querySelectorAll("#page tr[data-row]").forEach(function(r){r.style.display=!v2||r.textContent.indexOf(v2)>=0?"":"none"})}
 }
 function onChange(e){
+  if(priceChange(e))return;
   if(shipChange(e))return;
   var id=e.target.id;
   if(id==="fsite"){S.filt.site=e.target.value;render()}
