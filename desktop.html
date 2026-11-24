@@ -114,7 +114,7 @@ tr.sel td{background:var(--accl)}
 #bellPop .bp-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}#bellPop .bp-i{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 0;border-top:1px solid #eef0f3}
 #bellPop .bp-i small{display:block;color:#6b7280;font-size:12px}#bellPop .bp-e{color:#6b7280;margin:10px 0}#bellPop .bp-f{margin-top:6px}
 .prc{display:inline-flex;align-items:baseline;gap:4px;border:1px solid var(--line);border-radius:99px;padding:1px 10px;margin:2px 4px 2px 0;font-size:13px;white-space:nowrap}.prc small{color:var(--mu);font-size:11px}.prc.lo{background:var(--greenl);border-color:var(--green);color:var(--green)}
-.drop{display:flex;flex-direction:column;align-items:center;gap:6px;margin:12px 18px 18px;padding:46px 20px;border:2px dashed var(--line);border-radius:18px;cursor:pointer;text-align:center;color:var(--tx)}.drop small{color:var(--mu)}.drop:hover,.drop.over{border-color:var(--acc);background:var(--accl)}
+.drop{display:flex;flex-direction:column;align-items:center;gap:6px;margin:12px 18px 18px;padding:46px 20px;border:2px dashed var(--line);border-radius:18px;cursor:pointer;text-align:center;color:var(--tx)}.drop small{color:var(--mu)}.drop.shdrop{margin:4px 18px 10px;padding:18px 16px}.drop:hover,.drop.over{border-color:var(--acc);background:var(--accl)}
 .pmap{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px 14px;padding:4px 18px 12px}.pmap label{font-size:13px;color:var(--mu)}
 .cmp2{display:grid;grid-template-columns:340px minmax(0,1fr);gap:16px;align-items:start}.cmpl{max-height:calc(100vh - 300px);overflow:auto}
 .cmpi{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 18px;border-top:1px solid var(--line)}.cmpi small{display:block;color:var(--mu);font-size:12px}
@@ -200,7 +200,7 @@ function shell(){
   document.addEventListener("click",priceDocClick);
   $("page").addEventListener("compositionend",priceCompEnd);
   $("page").addEventListener("compositionend",cmpCompEnd);
-  ["dragover","dragleave","drop"].forEach(function(ev){$("page").addEventListener(ev,priceDrop)});
+  ["dragover","dragleave","drop"].forEach(function(ev){$("page").addEventListener(ev,priceDrop);$("page").addEventListener(ev,shipDrop)});
 }
 function setTheme(k){document.documentElement.dataset.theme=k==="霧藍"?"":k;document.querySelectorAll("[data-th]").forEach(function(b){b.classList.toggle("on",b.dataset.th===k)});try{localStorage.setItem("jl_desk_theme",k)}catch(e){}}
 function hero(eb,title,pills){return '<div class="hero"><div class="eb">'+esc(eb)+'</div><h1>'+esc(title)+'</h1>'+(pills&&pills.length?'<div class="pills">'+pills.map(function(p){return '<span>'+esc(p)+'</span>'}).join("")+'</div>':'')+'</div>'}
@@ -656,7 +656,8 @@ function shipDetail(x){
   return '<div class="panel"><div style="padding:14px 18px 4px;display:flex;gap:10px;align-items:baseline;flex-wrap:wrap"><h3 style="margin:0;padding:0">'+esc(o.no||"")+'　'+esc(o.site)+'</h3><span style="color:var(--mu)">叫料人 '+esc(x.who)+'・訂貨 '+esc(oDate(x)||o.orderDate)+'・交貨 '+esc(oDue(x)||o.dueDate)+'</span><span style="margin-left:auto">'+shipChip(c.status||"未核對")+'</span></div>'+
    (r.who?'<div style="padding:0 18px;color:var(--mu);font-size:12px">上次核對：'+esc(r.who)+'　'+esc(r.at)+'</div>':'')+
    '<div class="f"><button type="button" class="btn" data-shall="1">✓ 全部到齊</button><button type="button" class="btn" data-shclr="1">清空數量</button>'+
-   '<label class="btn pri" style="cursor:pointer">📷 上傳出貨單照片<input type="file" id="shFile" accept="image/*" multiple hidden></label>'+(d.text?'<button type="button" class="btn" data-shocr="1">↻ 用照片文字重新比對</button>':'')+'</div>'+
+   (d.text?'<button type="button" class="btn" data-shocr="1">↻ 用照片文字重新比對</button>':'')+'</div>'+
+   '<label class="drop shdrop" id="shDrop"><input type="file" id="shFile" accept="image/*" multiple hidden><b>📷 把出貨單照片拖到這裡</b><small>或點一下選照片、也可以按 Ctrl+V 貼上截圖（可以一次多張）<br>系統會讀照片上的字，自動判斷每一項有沒有到貨</small></label>'+
    (d.msg?'<div class="note">'+d.msg+'</div>':'')+
    '<div class="tw"><table class="shipt"><tr><th>#</th><th>品名</th><th class="n">叫料</th><th class="n">到貨</th><th>狀態</th></tr>'+rows+'</table></div>'+
    '<div style="padding:10px 18px"><b style="font-size:13px">出貨單照片</b><div class="phs">'+(ph||'<span style="color:var(--mu);font-size:13px">還沒有照片。可以一次選多張，手機會直接開相機。</span>')+'</div>'+
@@ -685,7 +686,11 @@ function ocrMatch(x,text){
   return out;
 }
 function applyOcr(x,d,text){var m=ocrMatch(x,text),n=0;Object.keys(m).forEach(function(k){if(d.recv[k]===undefined||d.recv[k]===""||d.sug[k]){d.recv[k]=m[k];d.sug[k]=1;n++}});d.dirty=d.dirty||n>0;
-  d.msg=n?'照片判讀填了 <b>'+n+'</b> 個品項（黃色框），請對照照片確認後按「儲存核對結果」。':'照片上的字沒有對到品項，請手動填數量。';}
+  if(!n){d.msg='照片上的字沒有對到品項，請手動填數量。';return}
+  var c=shipCalc(x,d.recv),ls=lines(x),bad=[],miss=[];
+  ls.forEach(function(l,i){var s=c.line[lkey(l,i)];if(s==="short"||s==="none")bad.push(lineLabel(l)+" "+(l.size||"")+"（叫 "+(+l.qty||0)+"，到 "+d.recv[lkey(l,i)]+"）");else if(s==="over")bad.push(lineLabel(l)+" "+(l.size||"")+"（多送）");else if(!s)miss.push(lineLabel(l)+" "+(l.size||""))});
+  var head=c.status==="已到齊"?'<b style="color:#1e7d32">判讀結果：全部到齊 ✓</b>':c.status==="有短少"?'<b style="color:#c0392b">判讀結果：有短少</b>':c.status==="有多送"?'<b style="color:#b26a00">判讀結果：有多送</b>':'<b>判讀結果：部分品項已對到</b>';
+  d.msg=head+'　照片對到 <b>'+n+'</b> 項（黃色框）'+(bad.length?'<br>有問題：'+bad.map(esc).join("、"):'')+(miss.length?'<br>照片上沒找到：'+miss.map(esc).join("、")+'（請手動填）':'')+'<br><small>請對照照片確認後按「💾 儲存核對結果」。</small>';}
 function resizeImg(file){return new Promise(function(ok,no){var fr=new FileReader();fr.onerror=no;fr.onload=function(){var im=new Image();im.onerror=function(){no(new Error("這個檔案不是照片"))};im.onload=function(){var k=Math.min(1,1800/Math.max(im.width,im.height)),c=document.createElement("canvas");c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);c.getContext("2d").drawImage(im,0,0,c.width,c.height);ok(c.toDataURL("image/jpeg",0.85))};im.src=fr.result};fr.readAsDataURL(file)})}
 function shipClick(e){
   var t,q=function(s){return e.target.closest(s)};if(S.page!=="ship")return false;
@@ -707,12 +712,18 @@ function shipInput(e){if(S.page!=="ship"||!S.shipD)return false;var t=e.target;
 function shipChange(e){if(S.page!=="ship")return false;var t=e.target;
   if(t.id==="shSite"){S.shipF.site=t.value;render();return true}
   if(t.dataset.recv!==undefined){shipRefresh();return true}
-  if(t.id==="shFile"){var x=S.orders.filter(function(o){return o.id===S.shipSel})[0],d=S.shipD,files=[].slice.call(t.files||[]);if(!x||!d||!files.length)return true;var o=O(x);
+  if(t.id==="shFile"){shipUpload([].slice.call(t.files||[]));return true}
+  return false}
+function shipUpload(files){var x=S.orders.filter(function(o){return o.id===S.shipSel})[0],d=S.shipD;files=(files||[]).filter(function(f){return /^image\//.test(f.type)});
+    if(!x||!d){toast("請先從左邊選一張叫料單");return}if(!files.length){toast("請放照片檔（jpg、png）");return}var o=O(x);
     d.msg="上傳照片中，並讀取照片上的字（每張約 10～20 秒）…";shipRefresh();
     files.reduce(function(p,f){return p.then(function(){return resizeImg(f)}).then(function(url){return api({action:"shipPhoto",id:x.id,no:o.no,site:o.site,mime:"image/jpeg",data:url.split(",")[1]}).then(function(j){if(!j.ok)throw new Error(j.error);S.img=S.img||{};S.img[j.fileId]=url;S.ships[x.id]=j.ship;if(j.text)d.text=(d.text?d.text+"\n":"")+j.text})})},Promise.resolve())
     .then(function(){if(d.text)applyOcr(x,d,d.text);else d.msg="照片已上傳，但沒有讀到文字（可能太模糊或是手寫），請手動填數量。";shipRefresh()})
-    .catch(function(err){d.msg="上傳失敗："+esc(err.message||err);shipRefresh()});return true}
-  return false}
+    .catch(function(err){d.msg="上傳失敗："+esc(err.message||err);shipRefresh()})}
+function shipDrop(e){if(S.page!=="ship")return;e.preventDefault();var z=e.target.closest&&e.target.closest("#shDrop");
+  if(e.type==="dragover"){if(z)z.classList.add("over");return}if(e.type==="dragleave"){if(z)z.classList.remove("over");return}
+  if(e.type==="drop"){if(z)z.classList.remove("over");else if(!S.shipSel){toast("請先從左邊選一張叫料單");return}shipUpload([].slice.call(e.dataTransfer.files||[]))}}
+document.addEventListener("paste",function(e){if(S.page!=="ship"||!S.shipSel)return;var fs=[].slice.call((e.clipboardData&&e.clipboardData.files)||[]).filter(function(f){return /^image\//.test(f.type)});if(fs.length){e.preventDefault();shipUpload(fs)}});
 
 // ---------- 工地資料 ----------
 function pSites(){
