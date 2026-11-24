@@ -148,7 +148,7 @@ touch();
 
 // ---------- 狀態 ----------
 var S={page:"home",orders:[],deleted:[],sites:[],users:null,tables:{},filt:{site:"",who:"",month:"",q:"",tab:"list"},siteTab:"list",vTab:"常用廠商名單",vq:"",vcat:"全部",vDel:false,dlg:null};
-var NAV=[["工地管理",[["home","首頁儀表板"],["jl","進料管理"],["newjl","手動叫料"],["sum","叫料統計"],["ship","出貨核對"],["cmp","比價下單",1],["bill","帳單核對",1],["price","價目表"],["pcmp","查比價"]]],
+var NAV=[["工地管理",[["home","首頁儀表板"],["jl","叫料紀錄"],["newjl","手動叫料"],["sum","叫料統計"],["ship","出貨核對"],["cmp","比價下單",1],["bill","帳單核對",1],["price","價目表"],["pcmp","查比價"]]],
  ["基本資料",[["sites","工地資料（收貨人）"],["vendor","廠商資料"]]],
  ["系統",[["user","使用者管理"],["phone","切換到手機版"]]]];
 var now=new Date();
@@ -250,7 +250,7 @@ function pJL(){
   var f=S.filt,list=filtered();
   var sites=S.orders.map(function(x){return O(x).site}).filter(uniq).sort(),whos=S.orders.map(function(x){return x.who}).filter(uniq).sort(),months=S.orders.map(function(x){return oDate(x).slice(0,7)}).filter(uniq).sort().reverse();
   var sel=function(id,cur,opts,all){return '<select class="in" id="'+id+'" aria-label="'+all+'"><option value="">'+all+'</option>'+opts.map(function(v){return '<option '+(v===cur?"selected":"")+'>'+esc(v)+'</option>'}).join("")+'</select>'};
-  return hero("進料管理","全部叫料單",["共 "+S.orders.length+" 張","目前篩選 "+list.length+" 張","資料來源：試算表「訂單」「明細」"])+'<div class="content"><div class="panel">'+
+  return hero("叫料紀錄","全部叫料單",["共 "+S.orders.length+" 張","目前篩選 "+list.length+" 張","資料來源：試算表「訂單」「明細」"])+'<div class="content"><div class="panel">'+
   '<div class="f"><input class="in grow" id="fq" value="'+esc(f.q)+'" placeholder="搜尋單號、品名、收貨人、備註…" aria-label="搜尋叫料單">'+sel("fsite",f.site,sites,"全部工地")+sel("fwho",f.who,whos,"全部叫料人")+sel("fmonth",f.month,months,"全部月份")+
   '<div class="r"><button type="button" class="btn" id="csv">⬇ 匯出 Excel（CSV）</button></div></div>'+orderTable(list)+'</div></div>';
 }
@@ -616,8 +616,8 @@ function shipStatus(x){var r=shipOf(x);return r&&r.status||"未核對"}
 function shipChip(s){var c={"已到齊":"s-ok","有短少":"s-bad","有多送":"s-warn","部分核對":"s-warn"}[s]||"s-none";return '<span class="st '+c+'">'+esc(s)+'</span>'}
 function loadShips(){return api({action:"shipList"}).then(function(j){if(j.ok){S.ships=j.ships||{};S.shipErr=""}else S.shipErr=j.error||"讀取失敗"}).catch(function(e){S.shipErr=String(e.message||e)})}
 function pShip(){
-  if(!S.ships&&!S.shipErr){loadShips().then(function(){if(S.page==="ship")render()});return hero("進料管理","出貨核對",[])+'<div class="spin">讀取核對紀錄中…</div>'}
-  if(S.shipErr)return hero("進料管理","出貨核對",[])+'<div class="content"><div class="panel"><div class="warn">讀取失敗：'+esc(S.shipErr)+'<br>如果寫「未知的動作」，代表後台還沒更新到有出貨核對的版本。</div></div></div>';
+  if(!S.ships&&!S.shipErr){loadShips().then(function(){if(S.page==="ship")render()});return hero("叫料紀錄","出貨核對",[])+'<div class="spin">讀取核對紀錄中…</div>'}
+  if(S.shipErr)return hero("叫料紀錄","出貨核對",[])+'<div class="content"><div class="panel"><div class="warn">讀取失敗：'+esc(S.shipErr)+'<br>如果寫「未知的動作」，代表後台還沒更新到有出貨核對的版本。</div></div></div>';
   var f=S.shipF||(S.shipF={tab:"待核對",site:""});
   var cnt={"待核對":0,"有問題":0,"已到齊":0,"全部":S.orders.length};
   S.orders.forEach(function(x){var s=shipStatus(x);if(s==="已到齊")cnt["已到齊"]++;else if(s==="有短少"||s==="有多送")cnt["有問題"]++;else cnt["待核對"]++});
@@ -630,7 +630,7 @@ function pShip(){
     '<div class="f"><select class="in grow" id="shSite" aria-label="工地"><option value="">全部工地</option>'+sites.map(function(s){return '<option '+(s===f.site?"selected":"")+'>'+esc(s)+'</option>'}).join("")+'</select></div>'+
     (list.length?'<div class="tw" style="max-height:calc(100vh - 300px)"><table><tr><th>單號／工地</th><th>交貨日</th><th>狀態</th></tr>'+list.map(function(x){var o=O(x),r=shipOf(x);return '<tr class="click'+(x.id===S.shipSel?' sel':'')+'" data-ship="'+esc(x.id)+'"><td><b>'+esc(o.no||"—")+'</b><small>'+esc(o.site)+'・'+esc(x.who)+'</small></td><td>'+esc(oDue(x)||o.dueDate||"")+(oDue(x)&&oDue(x)<TODAY&&shipStatus(x)==="未核對"?'<small style="color:#c0392b">已過交貨日</small>':'')+'</td><td>'+shipChip(shipStatus(x))+(r&&r.photos&&r.photos.length?'<small>📷 '+r.photos.length+'</small>':'')+'</td></tr>'}).join("")+'</table></div>':'<div class="empty">這裡沒有叫料單</div>')+'</div>';
   var right=sel?shipDetail(sel):'<div class="panel"><div class="empty" style="padding:60px 20px">← 從左邊選一張叫料單開始核對<br><small style="color:var(--mu)">每個品項填到貨數量，或上傳出貨單照片讓系統幫你讀數量</small></div></div>';
-  return hero("進料管理","出貨核對",["待核對 "+cnt["待核對"]+" 張","有問題 "+cnt["有問題"]+" 張","照片存在雲端硬碟「叫料小幫手_出貨照片」"])+'<div class="content"><div class="ship2">'+left+right+'</div></div>';
+  return hero("叫料紀錄","出貨核對",["待核對 "+cnt["待核對"]+" 張","有問題 "+cnt["有問題"]+" 張","照片存在雲端硬碟「叫料小幫手_出貨照片」"])+'<div class="content"><div class="ship2">'+left+right+'</div></div>';
 }
 function shipDetail(x){
   var o=O(x),r=shipOf(x)||{photos:[],recv:{}};
