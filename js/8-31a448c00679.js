@@ -99,7 +99,7 @@
           o.lines.map(function(l,i){return '<div class="al"><div class="nm">'+esc(l.name)+' <small>'+esc([l.size,l.spec].filter(Boolean).join(" "))+'</small></div>'+
             '<div class="row"><input type="number" inputmode="decimal" min="0" step="any" data-q="'+i+'" value="'+esc(l.qty)+'"><span style="font-size:16px">'+esc(l.unit)+'</span><button class="btn" type="button" data-r="'+i+'" style="color:#dc2626">✕ 移除</button></div>'+
             '<div class="row" style="grid-template-columns:1fr"><input data-m="'+i+'" placeholder="備註" value="'+esc(l.remark)+'"></div>'+
-            '<div class="row" style="grid-template-columns:1fr 1fr"><input data-at="'+i+'" placeholder="到貨時間" value="'+esc(l.arrTime||"")+'"><input data-sv="'+i+'" placeholder="交貨廠商" value="'+esc(l.supplier||"")+'"></div></div>'}).join("")+
+            '<div class="row" style="grid-template-columns:1fr 1fr"><input data-at="'+i+'" placeholder="到貨狀況" value="'+esc(l.arrTime||"")+'"><input data-sv="'+i+'" placeholder="交貨廠商" value="'+esc(l.supplier||"")+'"></div></div>'}).join("")+
           '</div><div class="add"><input id="nName" placeholder="品名"><input id="nSize" placeholder="尺寸"><input id="nUnit" placeholder="單位（個、支…）"><input id="nQty" type="number" inputmode="decimal" placeholder="數量"><button class="btn btn-p" type="button" id="nAdd">＋ 新增品項</button></div>';
       }
       function grab(){

@@ -29,7 +29,7 @@ var ORDER_HEAD = ["訂單ID", "單號", "工地", "公司", "訂貨日", "交貨
 var SH_DEL = "已刪除";
 var DEL_HEAD = ["訂單ID", "叫料人", "刪除時間", "刪除人", "單號", "工地"];
 var COL_REV = 15, COL_DATA = 16;
-var LINE_HEAD = ["訂單ID", "單號", "工地", "訂貨日", "分類", "品名", "尺寸", "規格說明", "單位", "數量", "備註", "叫料人", "月份", "刪除（打勾）", "明細ID（程式用）", "到貨時間", "交貨廠商"];
+var LINE_HEAD = ["訂單ID", "單號", "工地", "訂貨日", "分類", "品名", "尺寸", "規格說明", "單位", "數量", "備註", "叫料人", "月份", "刪除（打勾）", "明細ID（程式用）", "到貨狀況", "交貨廠商"];
 var COL_ODEL = 17, LCOL_DEL = 14, LCOL_ID = 15;
 
 function setup() {
@@ -428,7 +428,7 @@ function syncSiteSheets_(ss) {
 // ---------- 管理員修改／刪除叫料單，並同步回每支手機的「紀錄」 ----------
 function lineSheet_(ss) {
   var sl = ensureSheet_(ss, SH_LINE, LINE_HEAD);
-  if (sl.getLastColumn() < LINE_HEAD.length) {
+  if (sl.getLastColumn() < LINE_HEAD.length || String(sl.getRange(1, 16).getValue()) !== LINE_HEAD[15]) {
     sl.getRange(1, 1, 1, LINE_HEAD.length).setValues([LINE_HEAD]).setFontWeight("bold").setBackground("#e8f0e4");
   }
   return sl;

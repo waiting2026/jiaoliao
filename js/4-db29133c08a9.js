@@ -671,7 +671,7 @@ function renderOrder(){
     <div class="nm"><b>${esc(materialName(l))} ${esc(l.size)}</b><small>${esc(lineSpec(l))}</small>
       <div class="ctl"><div class="step"><button data-a="-">−</button><input class="qt" type="number" inputmode="decimal" min="0" step="any" value="${l.qty}"><button data-a="+">＋</button></div>
       <span class="note">${esc(l.unit)}</span>
-      <input class="rm" maxlength="60" value="${esc(l.remark)}" placeholder="備註"><input class="at" maxlength="30" value="${esc(l.arrTime||"")}" placeholder="到貨時間" aria-label="到貨時間"><input class="sv" maxlength="30" value="${esc(l.supplier||"")}" placeholder="交貨廠商" aria-label="交貨廠商"><button class="del">刪除</button></div></div>
+      <input class="rm" maxlength="60" value="${esc(l.remark)}" placeholder="備註"><input class="at" maxlength="30" value="${esc(l.arrTime||"")}" placeholder="到貨狀況" aria-label="到貨狀況"><input class="sv" maxlength="30" value="${esc(l.supplier||"")}" placeholder="交貨廠商" aria-label="交貨廠商"><button class="del">刪除</button></div></div>
     <div></div></div>`).join("");
   
   v.innerHTML=`
@@ -949,7 +949,7 @@ function fillOrderSheet(ws,d){
   addArrCols(ws,d,FIRST,last,noteR);
   ws.pageSetup=Object.assign({},ws.pageSetup,{paperSize:9,orientation:"portrait",fitToPage:true,fitToWidth:1,fitToHeight:0,printArea:`A1:I${noteR}`});
 }
-// 備註後面多兩欄：到貨時間、交貨廠商（外框雙線移到最右邊 I 欄）
+// 備註後面多兩欄：到貨狀況、交貨廠商（外框雙線移到最右邊 I 欄）
 function addArrCols(ws,d,FIRST,last,noteR){
   const cp=o=>JSON.parse(JSON.stringify(o||{}));
   ws.getColumn(8).width=13;ws.getColumn(9).width=16;
@@ -962,7 +962,7 @@ function addArrCols(ws,d,FIRST,last,noteR){
   const unmerge=a=>{try{ws.unMergeCells(a)}catch(e){}},merge=a=>{try{ws.mergeCells(a)}catch(e){}};
   unmerge("A1:G2");merge("A1:I2");unmerge("A3:G4");merge("A3:I4");unmerge(`A${noteR}:G${noteR}`);merge(`A${noteR}:I${noteR}`);
   for(let r=5;r<=11;r++)merge(`G${r}:I${r}`);
-  ws.getCell("H12").value="到貨時間";ws.getCell("I12").value="交貨廠商";
+  ws.getCell("H12").value="到貨狀況";ws.getCell("I12").value="交貨廠商";
   for(let r=FIRST;r<=last;r++){const l=d.lines[r-FIRST],row=ws.getRow(r);
     [8,9].forEach(c=>{const ce=row.getCell(c);ce.value=l?(c===8?l.arrTime:l.supplier)||"":null;ce.font=Object.assign({},ce.font,{size:11});ce.alignment={horizontal:"center",vertical:"middle",wrapText:true}})}
 }
@@ -990,7 +990,7 @@ function buildSummary(ws,orders,proj){
   const lab=(r,t,v)=>{ws.getCell(`A${r}`).value=t;ws.mergeCells(`C${r}:F${r}`);ws.getCell(`C${r}`).value=v;
     for(let c=1;c<=10;c++){const ce=ws.getRow(r).getCell(c);ce.border=brd;ce.font=F(c===1?14:13);ce.alignment={horizontal:c===1?"center":"left",vertical:"middle"}}ws.getRow(r).height=24.75};
   lab(5,"工程名稱",proj);lab(6,"交貨地點",["工務所","工地","自取"].map(m=>(last.mode===m?"█":"□")+m).join("  ")+(last.addr?"　"+last.addr:""));
-  const hdr=["下單日期","項次","品名及規格","單 位","數 量","下單廠商","到貨狀況","備 註","到貨時間","交貨廠商"];
+  const hdr=["下單日期","項次","品名及規格","單 位","數 量","下單廠商","到貨狀況","備 註","到貨狀況","交貨廠商"];
   const hr=ws.getRow(7);hdr.forEach((h,i)=>{const c=hr.getCell(i+1);c.value=h;c.font=F(15);c.alignment={horizontal:"center",vertical:"middle"};c.border=brd;c.fill={type:"pattern",pattern:"solid",fgColor:{argb:"FFDDEBF7"}}});hr.height=33.75;
   let r=8;
   for(const o of orders){
@@ -1067,7 +1067,7 @@ function buildPages(d){
   chunks.push(L.slice(0,FIRST_ROWS));for(let i=FIRST_ROWS;i<L.length;i+=NEXT_ROWS)chunks.push(L.slice(i,i+NEXT_ROWS));
   const total=chunks.length;let start=0;
   const head=`<colgroup><col style="width:5%"><col style="width:33%"><col style="width:6%"><col style="width:7%"><col style="width:8%"><col style="width:8%"><col style="width:13%"><col style="width:9%"><col style="width:11%"></colgroup>
-   <thead><tr><th>項次</th><th>品名及規格</th><th>單位</th><th>數量</th><th>單價</th><th>複價</th><th>備註</th><th>到貨時間</th><th>交貨廠商</th></tr></thead>`;
+   <thead><tr><th>項次</th><th>品名及規格</th><th>單位</th><th>數量</th><th>單價</th><th>複價</th><th>備註</th><th>到貨狀況</th><th>交貨廠商</th></tr></thead>`;
   return chunks.map((ch,pi)=>{
     const pad=pi===0?FIRST_ROWS:ch.length;let rows="";
     for(let i=0;i<Math.max(pad,ch.length);i++){const l=ch[i];
