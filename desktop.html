@@ -260,6 +260,7 @@ function csv(){
   var t="﻿"+rows.map(function(r){return r.map(function(v){v=String(v==null?"":v);return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v}).join(",")}).join("\r\n");
   var a=document.createElement("a");a.href=URL.createObjectURL(new Blob([t],{type:"text/csv"}));a.download="叫料明細_"+TODAY+".csv";a.click();
 }
+function qtyNum(v){var s=String(v==null?"":v).replace(/[０-９．]/g,function(c){return c==="．"?".":String.fromCharCode(c.charCodeAt(0)-65248)}).replace(/,/g,"");var m=s.match(/\d+(\.\d+)?/);return m?+m[0]:0}
 function orderDlg(x){
   var o=JSON.parse(JSON.stringify(O(x)));o.lines=o.lines||[];
   S.dlg={t:"order",x:x,o:o};renderDlg();
@@ -786,13 +787,15 @@ function onDlgClick(e){
   if(q("[data-x]")){S.dlg=null;renderDlg();return}
   if(d.t==="order"){
     var o=d.o;
-    var readO=function(){o.site=$("o-site").value.trim();o.company=$("o-co").value.trim();o.orderDate=$("o-od").value.trim();o.dueDate=$("o-dd").value.trim();o.contact=$("o-ct").value.trim();o.contactTel=$("o-tel").value.trim();o.note=$("o-note").value.trim();document.querySelectorAll("[data-lq]").forEach(function(el){o.lines[+el.dataset.lq].qty=+el.value||0});
+    var readO=function(){o.site=$("o-site").value.trim();o.company=$("o-co").value.trim();o.orderDate=$("o-od").value.trim();o.dueDate=$("o-dd").value.trim();o.contact=$("o-ct").value.trim();o.contactTel=$("o-tel").value.trim();o.note=$("o-note").value.trim();document.querySelectorAll("[data-lq]").forEach(function(el){o.lines[+el.dataset.lq].qty=qtyNum(el.value)});
       o.lines.forEach(function(l,i){var g=function(a){var el=document.querySelector("[data-"+a+'="'+i+'"]');return el?el.value.trim():null};var nm=g("ln"),sz=g("ls"),sp=g("lsp"),un=g("lu");if(nm==null)return;
         var old=((l.brand?l.brand+" ":"")+l.name),ch=nm!==old||sz!==String(l.size||"")||sp!==String(l.spec||"");
         if(ch){l.name=nm;delete l.brand;l.size=sz;l.spec=sp;if(l.ik!=="custom"){l.ik="custom";l.vk="c|"+(l.id||Date.now()+i)}l.remark=l.remark||"管理員修改"}l.unit=un})};
     if(t=q("[data-ldel]")){readO();o.lines.splice(+t.dataset.ldel,1);renderDlg();return}
     if(t=q("[data-ladd]")){readO();var nid="a"+Date.now().toString(36);o.lines.push({id:nid,vk:"c|"+nid,ik:"custom",cat:"自訂",name:"",size:"",spec:"",list:null,priceNote:"",unit:"個",qty:"",price:null,remark:"管理員新增"});renderDlg();var ins=document.querySelectorAll("[data-ln]");if(ins.length)ins[ins.length-1].focus();return}
-    if(t=q("[data-osave]")){readO();var bad=o.lines.filter(function(l){return l.qty>0&&!String(l.name||"").trim()});if(bad.length){alert("有 "+bad.length+" 項材料還沒填品名");return}o.lines=o.lines.filter(function(l){return l.qty>0});busy(t);api({action:"adminSaveOrder",order:o,owner:d.x.who}).then(function(j){if(!j.ok)throw new Error(j.error);o.adminRev=j.rev;d.x.order=o;d.x.rev=j.rev;S.dlg=null;toast("已儲存");render()}).catch(function(err){alert("儲存失敗："+(err.message||err));renderDlg()});return}
+    if(t=q("[data-osave]")){readO();var bad=o.lines.filter(function(l){return l.qty>0&&!String(l.name||"").trim()});if(bad.length){alert("有 "+bad.length+" 項材料還沒填品名");return}
+      var zero=o.lines.filter(function(l){return !(l.qty>0)&&String(l.name||"").trim()});if(zero.length&&!confirm("這幾項數量是 0 或沒填，存檔後會被刪掉：\n"+zero.map(function(l){return "・"+l.name+" "+(l.size||"")}).join("\n")+"\n\n確定要刪掉嗎？（按「取消」回去補數量）"))return;
+      o.lines=o.lines.filter(function(l){return l.qty>0});busy(t);api({action:"adminSaveOrder",order:o,owner:d.x.who}).then(function(j){if(!j.ok)throw new Error(j.error);o.adminRev=j.rev;d.x.order=o;d.x.rev=j.rev;S.dlg=null;toast("已儲存");render()}).catch(function(err){alert("儲存失敗："+(err.message||err));renderDlg()});return}
     if(t=q("[data-odel]")){if(!confirm("確定刪除叫料單 "+(o.no||"")+"？\n（會移到試算表「已刪除」分頁）"))return;busy(t);api({action:"adminDeleteOrder",id:d.x.id,owner:d.x.who}).then(function(j){if(!j.ok)throw new Error(j.error);S.orders=S.orders.filter(function(x){return x.id!==d.x.id});S.dlg=null;toast("已刪除");render()}).catch(function(err){alert("刪除失敗："+(err.message||err));renderDlg()});return}
   }
   if(d.t==="site"){
