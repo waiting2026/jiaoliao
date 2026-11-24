@@ -250,7 +250,7 @@ function orderDlg(x){
 
 // ---------- 手動叫料：直接用手機版全部功能 ----------
 function pNew(){
-  return '<div class="hero"><div class="eb">工地管理</div><div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap"><h1>手動叫料</h1><label style="display:flex;align-items:center;gap:8px;font-weight:600;white-space:nowrap">工地<select class="in" id="njSite" aria-label="工地" style="min-width:220px"><option>讀取中…</option></select></label></div><div class="pills"><span>左：叫料單資料　中：點料　右：叫料單</span><span>存檔後同步到試算表</span><span>工地、收貨人請到「工地資料」修改</span></div></div>'+
+  return '<div class="hero"><div class="eb">工地管理</div><div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap"><h1>手動叫料</h1><label style="display:flex;align-items:center;gap:8px;font-weight:600;white-space:nowrap">工地<select class="in" id="njSite" aria-label="工地" style="min-width:220px"><option>讀取中…</option></select></label><label style="display:flex;align-items:center;gap:8px;font-weight:600;white-space:nowrap">搜尋<input class="in" id="njQ" type="search" aria-label="搜尋品名或關鍵字" placeholder="品名或關鍵字，例如：B管 2&quot;、球塞閥" style="min-width:300px"></label></div><div class="pills"><span>左：叫料單資料　中：點料　右：叫料單</span><span>存檔後同步到試算表</span><span>工地、收貨人請到「工地資料」修改</span></div></div>'+
     '<div class="content" style="padding-top:14px"><div class="panel"><iframe class="frame" id="njFrame" src="index.html?embed=1" title="叫料小幫手"></iframe></div></div>';
 }
 // 叫料紀錄、叫料統計：和手機版「紀錄」「統計」同一份資料
@@ -265,6 +265,9 @@ setInterval(function(){
   var p;try{p=fr.contentDocument&&fr.contentDocument.getElementById("proj")}catch(e){return}if(!p)return;
   var h=p.innerHTML;if(sel.getAttribute("data-h")!==h){sel.innerHTML=h;sel.setAttribute("data-h",h)}
   if(document.activeElement!==sel&&sel.value!==p.value)sel.value=p.value;
+  var sq=document.getElementById("njQ"),iq=fr.contentDocument.getElementById("q");
+  if(sq&&iq){if(document.activeElement!==sq&&sq.value!==iq.value)sq.value=iq.value;
+    if(!sq.oninput)sq.oninput=function(){var q=fr.contentDocument.getElementById("q");if(!q)return;q.value=sq.value;q.dispatchEvent(new Event("input",{bubbles:true}))}}
   if(!sel.onchange)sel.onchange=function(){var q=fr.contentDocument.getElementById("proj");q.value=sel.value;q.dispatchEvent(new Event("change",{bubbles:true}))};
 },500);
 
