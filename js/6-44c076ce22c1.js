@@ -29,7 +29,7 @@
       id:o.id,no:o.no,site:o.project||p.name,company:o.company||"",
       orderDate:o.orderDate||"",dueDate:o.dueDate||"",contact:o.contact||"",contactTel:o.contactTel||"",
       exported:!!o.exported,saved:o.saved||0,note:o.note||"",adminRev:o.adminRev||0,
-      lines:(o.lines||[]).map(function(l){return{id:l.id||"",vk:l.vk||"",ik:l.ik||"",len:l.len||"",cat:l.cat||"",name:l.name||"",size:l.size==null?"":String(l.size),spec:l.spec||"",unit:l.unit||"",qty:+l.qty||0,remark:l.remark||""}})
+      lines:(o.lines||[]).map(function(l){return{id:l.id||"",vk:l.vk||"",ik:l.ik||"",len:l.len||"",cat:l.cat||"",name:l.name||"",size:l.size==null?"":String(l.size),spec:l.spec||"",unit:l.unit||"",qty:+l.qty||0,remark:l.remark||"",arrTime:l.arrTime||"",supplier:l.supplier||""}})
     };
   }
   function sig(o){return (o.saved||0)+"|"+(o.exported?1:0)+"|"+(o.lines||[]).length+"|"+(o.adminRev||0)}

@@ -671,7 +671,7 @@ function renderOrder(){
     <div class="nm"><b>${esc(materialName(l))} ${esc(l.size)}</b><small>${esc(lineSpec(l))}</small>
       <div class="ctl"><div class="step"><button data-a="-">−</button><input class="qt" type="number" inputmode="decimal" min="0" step="any" value="${l.qty}"><button data-a="+">＋</button></div>
       <span class="note">${esc(l.unit)}</span>
-      <input class="rm" maxlength="60" value="${esc(l.remark)}" placeholder="備註"><button class="del">刪除</button></div></div>
+      <input class="rm" maxlength="60" value="${esc(l.remark)}" placeholder="備註"><input class="at" maxlength="30" value="${esc(l.arrTime||"")}" placeholder="到貨時間" aria-label="到貨時間"><input class="sv" maxlength="30" value="${esc(l.supplier||"")}" placeholder="交貨廠商" aria-label="交貨廠商"><button class="del">刪除</button></div></div>
     <div></div></div>`).join("");
   
   v.innerHTML=`
@@ -709,6 +709,8 @@ function renderOrder(){
     if(t.classList.contains("qt")){l.qty=Math.max(0,+t.value||0)}
     else if(t.classList.contains("pr")){l.price=t.value===""?null:+t.value}
     else if(t.classList.contains("rm")){l.remark=t.value}
+    else if(t.classList.contains("at")){l.arrTime=t.value}
+    else if(t.classList.contains("sv")){l.supplier=t.value}
     persist();
     
   };
@@ -944,7 +946,25 @@ function fillOrderSheet(ws,d){
   }
   ws.getCell(`A${noteR}`).value=(d.note?"備註："+d.note:"備註：")+(d.arrival?`　到貨狀況：${d.arrival}`:"");
   ws.getCell(`A${noteR}`).alignment={horizontal:"left",vertical:"middle",wrapText:true};
-  ws.pageSetup=Object.assign({},ws.pageSetup,{paperSize:9,orientation:"portrait",fitToPage:true,fitToWidth:1,fitToHeight:0,printArea:`A1:G${noteR}`});
+  addArrCols(ws,d,FIRST,last,noteR);
+  ws.pageSetup=Object.assign({},ws.pageSetup,{paperSize:9,orientation:"portrait",fitToPage:true,fitToWidth:1,fitToHeight:0,printArea:`A1:I${noteR}`});
+}
+// 備註後面多兩欄：到貨時間、交貨廠商（外框雙線移到最右邊 I 欄）
+function addArrCols(ws,d,FIRST,last,noteR){
+  const cp=o=>JSON.parse(JSON.stringify(o||{}));
+  ws.getColumn(8).width=13;ws.getColumn(9).width=16;
+  for(let r=1;r<=noteR;r++){const row=ws.getRow(r),g=row.getCell(7),st=cp(g.style);
+    const inner=cp(st);if(inner.border&&inner.border.right)inner.border.right={style:"thin"};
+    row.getCell(8).style=cp(inner);row.getCell(9).style=cp(st);
+    if(r>=5&&r<=11)row.getCell(8).style=cp(st),row.getCell(9).style=cp(st);
+    else if(g.border&&g.border.right&&g.border.right.style==="double")g.border=Object.assign({},g.border,{right:{style:"thin"}});
+  }
+  const unmerge=a=>{try{ws.unMergeCells(a)}catch(e){}},merge=a=>{try{ws.mergeCells(a)}catch(e){}};
+  unmerge("A1:G2");merge("A1:I2");unmerge("A3:G4");merge("A3:I4");unmerge(`A${noteR}:G${noteR}`);merge(`A${noteR}:I${noteR}`);
+  for(let r=5;r<=11;r++)merge(`G${r}:I${r}`);
+  ws.getCell("H12").value="到貨時間";ws.getCell("I12").value="交貨廠商";
+  for(let r=FIRST;r<=last;r++){const l=d.lines[r-FIRST],row=ws.getRow(r);
+    [8,9].forEach(c=>{const ce=row.getCell(c);ce.value=l?(c===8?l.arrTime:l.supplier)||"":null;ce.font=Object.assign({},ce.font,{size:11});ce.alignment={horizontal:"center",vertical:"middle",wrapText:true}})}
 }
 function cloneSheet(wb,src,name){
   const ws=wb.addWorksheet(name);
@@ -962,15 +982,15 @@ function buildSummary(ws,orders,proj){
   const F=(sz,b)=>({name:"微軟正黑體",size:sz,bold:!!b});
   const thin={style:"thin"},dbl={style:"double"};
   const brd={top:thin,left:thin,bottom:thin,right:thin};
-  [13.9,8,40,7.5,8,21,15,30].forEach((w,i)=>ws.getColumn(i+1).width=w);
+  [13.9,8,40,7.5,8,21,15,30,13,16].forEach((w,i)=>ws.getColumn(i+1).width=w);
   const last=orders[orders.length-1]||{};
   const [yy,mm]=monthOf(last.orderDate).split("-");
-  ws.mergeCells("A1:H2");ws.getCell("A1").value=last.company||S.settings.company||"";ws.getCell("A1").font=F(20);ws.getCell("A1").alignment={horizontal:"center",vertical:"middle"};
-  ws.mergeCells("A3:H4");ws.getCell("A3").value=`${+yy-1911}.${+mm} 材料出貨單總表`;ws.getCell("A3").font=F(20);ws.getCell("A3").alignment={horizontal:"center",vertical:"middle"};
+  ws.mergeCells("A1:J2");ws.getCell("A1").value=last.company||S.settings.company||"";ws.getCell("A1").font=F(20);ws.getCell("A1").alignment={horizontal:"center",vertical:"middle"};
+  ws.mergeCells("A3:J4");ws.getCell("A3").value=`${+yy-1911}.${+mm} 材料出貨單總表`;ws.getCell("A3").font=F(20);ws.getCell("A3").alignment={horizontal:"center",vertical:"middle"};
   const lab=(r,t,v)=>{ws.getCell(`A${r}`).value=t;ws.mergeCells(`C${r}:F${r}`);ws.getCell(`C${r}`).value=v;
-    for(let c=1;c<=8;c++){const ce=ws.getRow(r).getCell(c);ce.border=brd;ce.font=F(c===1?14:13);ce.alignment={horizontal:c===1?"center":"left",vertical:"middle"}}ws.getRow(r).height=24.75};
+    for(let c=1;c<=10;c++){const ce=ws.getRow(r).getCell(c);ce.border=brd;ce.font=F(c===1?14:13);ce.alignment={horizontal:c===1?"center":"left",vertical:"middle"}}ws.getRow(r).height=24.75};
   lab(5,"工程名稱",proj);lab(6,"交貨地點",["工務所","工地","自取"].map(m=>(last.mode===m?"█":"□")+m).join("  ")+(last.addr?"　"+last.addr:""));
-  const hdr=["下單日期","項次","品名及規格","單 位","數 量","下單廠商","到貨狀況","備 註"];
+  const hdr=["下單日期","項次","品名及規格","單 位","數 量","下單廠商","到貨狀況","備 註","到貨時間","交貨廠商"];
   const hr=ws.getRow(7);hdr.forEach((h,i)=>{const c=hr.getCell(i+1);c.value=h;c.font=F(15);c.alignment={horizontal:"center",vertical:"middle"};c.border=brd;c.fill={type:"pattern",pattern:"solid",fgColor:{argb:"FFDDEBF7"}}});hr.height=33.75;
   let r=8;
   for(const o of orders){
@@ -980,21 +1000,21 @@ function buildSummary(ws,orders,proj){
     while(i<o.lines.length){const cat=o.lines[i].cat||"";
       while(i<o.lines.length&&(o.lines[i].cat||"")===cat){const l=o.lines[i];no++;const row=ws.getRow(r);
         row.getCell(2).value=no;row.getCell(3).value=lineName(l);row.getCell(4).value=l.unit||"";row.getCell(5).value=+l.qty||0;
-        if(anyRemark)row.getCell(8).value=l.remark||"";r++;i++}
+        if(anyRemark)row.getCell(8).value=l.remark||"";row.getCell(9).value=l.arrTime||"";row.getCell(10).value=l.supplier||"";r++;i++}
       if(cat&&cat!=="自訂"){const row=ws.getRow(r);row.getCell(3).value=`以上 ${cat}`;row.getCell(3).font=Object.assign(F(12),{italic:true,color:{argb:"FF555555"}});r++}
     }
     const end=r-1;
-    for(let rr=start;rr<=end;rr++){const row=ws.getRow(rr);for(let c=1;c<=8;c++){const ce=row.getCell(c);ce.border=brd;if(!(c===3&&String(ce.value||"").startsWith("以上 ")))ce.font=F(c===1?15:13);
+    for(let rr=start;rr<=end;rr++){const row=ws.getRow(rr);for(let c=1;c<=10;c++){const ce=row.getCell(c);ce.border=brd;if(!(c===3&&String(ce.value||"").startsWith("以上 ")))ce.font=F(c===1?15:13);
       ce.alignment={horizontal:c===3?"left":"center",vertical:"middle",wrapText:c===3||c>=6}}}
     const vend=`${+o.orderDate.slice(5,7)}/${+o.orderDate.slice(8,10)}下單${o.vendor||""}`;
     const put=(col,val)=>{if(end>start)ws.mergeCells(`${col}${start}:${col}${end}`);ws.getCell(`${col}${start}`).value=val};
     put("A",rocDate(o.orderDate));put("F",vend);put("G",o.arrival||"");
     if(!anyRemark)put("H",o.note||"");else{const c=ws.getCell(`H${start}`);c.value=[o.note,c.value].filter(Boolean).join("；")}
-    for(let c=1;c<=8;c++)ws.getRow(end).getCell(c).border=Object.assign({},brd,{bottom:{style:"medium"}});
+    for(let c=1;c<=10;c++)ws.getRow(end).getCell(c).border=Object.assign({},brd,{bottom:{style:"medium"}});
   }
-  for(let k=0;k<15;k++,r++){const row=ws.getRow(r);for(let c=1;c<=8;c++){row.getCell(c).border=brd;row.getCell(c).font=F(13)}}
+  for(let k=0;k<15;k++,r++){const row=ws.getRow(r);for(let c=1;c<=10;c++){row.getCell(c).border=brd;row.getCell(c).font=F(13)}}
   ws.views=[{state:"frozen",ySplit:7}];
-  ws.pageSetup={paperSize:9,orientation:"portrait",fitToPage:true,fitToWidth:1,fitToHeight:0,printArea:`A1:H${r-1}`,printTitlesRow:"7:7"};
+  ws.pageSetup={paperSize:9,orientation:"portrait",fitToPage:true,fitToWidth:1,fitToHeight:0,printArea:`A1:J${r-1}`,printTitlesRow:"7:7"};
 }
 async function exportWorkbook(p,month,extra,share,single){
   const map=new Map();if(!single)p.orders.filter(o=>monthOf(o.orderDate)===month).forEach(o=>map.set(o.id,o));
@@ -1046,12 +1066,12 @@ function buildPages(d){
   const L=d.lines;const chunks=[];
   chunks.push(L.slice(0,FIRST_ROWS));for(let i=FIRST_ROWS;i<L.length;i+=NEXT_ROWS)chunks.push(L.slice(i,i+NEXT_ROWS));
   const total=chunks.length;let start=0;
-  const head=`<colgroup><col style="width:7%"><col style="width:41%"><col style="width:7%"><col style="width:9%"><col style="width:10%"><col style="width:10%"><col style="width:16%"></colgroup>
-   <thead><tr><th>項次</th><th>品名及規格</th><th>單位</th><th>數量</th><th>單價</th><th>複價</th><th>備註</th></tr></thead>`;
+  const head=`<colgroup><col style="width:5%"><col style="width:33%"><col style="width:6%"><col style="width:7%"><col style="width:8%"><col style="width:8%"><col style="width:13%"><col style="width:9%"><col style="width:11%"></colgroup>
+   <thead><tr><th>項次</th><th>品名及規格</th><th>單位</th><th>數量</th><th>單價</th><th>複價</th><th>備註</th><th>到貨時間</th><th>交貨廠商</th></tr></thead>`;
   return chunks.map((ch,pi)=>{
     const pad=pi===0?FIRST_ROWS:ch.length;let rows="";
     for(let i=0;i<Math.max(pad,ch.length);i++){const l=ch[i];
-      rows+=`<tr><td class="c">${l?start+i+1:""}</td><td class="nm">${l?esc(lineName(l)):""}</td><td class="c">${l?esc(l.unit||""):""}</td><td class="c">${l?fmt(+l.qty||0):""}</td><td></td><td></td><td class="rm">${l?esc(l.remark||""):""}</td></tr>`}
+      rows+=`<tr><td class="c">${l?start+i+1:""}</td><td class="nm">${l?esc(lineName(l)):""}</td><td class="c">${l?esc(l.unit||""):""}</td><td class="c">${l?fmt(+l.qty||0):""}</td><td></td><td></td><td class="rm">${l?esc(l.remark||""):""}</td><td class="rm">${l?esc(l.arrTime||""):""}</td><td class="rm">${l?esc(l.supplier||""):""}</td></tr>`}
     start+=ch.length;const last=pi===total-1;
     const top=pi===0?`<div class="pc">${esc(company)}</div><div class="pt">${esc(title)}${d.no?"　No. "+esc(d.no):""}</div>
   <table class="ph"><colgroup><col style="width:13%"><col style="width:52%"><col style="width:15%"><col style="width:20%"></colgroup>

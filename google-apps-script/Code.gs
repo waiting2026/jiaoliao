@@ -29,7 +29,7 @@ var ORDER_HEAD = ["訂單ID", "單號", "工地", "公司", "訂貨日", "交貨
 var SH_DEL = "已刪除";
 var DEL_HEAD = ["訂單ID", "叫料人", "刪除時間", "刪除人", "單號", "工地"];
 var COL_REV = 15, COL_DATA = 16;
-var LINE_HEAD = ["訂單ID", "單號", "工地", "訂貨日", "分類", "品名", "尺寸", "規格說明", "單位", "數量", "備註", "叫料人", "月份", "刪除（打勾）", "明細ID（程式用）"];
+var LINE_HEAD = ["訂單ID", "單號", "工地", "訂貨日", "分類", "品名", "尺寸", "規格說明", "單位", "數量", "備註", "叫料人", "月份", "刪除（打勾）", "明細ID（程式用）", "到貨時間", "交貨廠商"];
 var COL_ODEL = 17, LCOL_DEL = 14, LCOL_ID = 15;
 
 function setup() {
@@ -365,7 +365,7 @@ function upsert_(so, sl, o, who, rev) {
   so.getRange(r0, COL_ODEL).insertCheckboxes();
   if (lines.length) {
     var rows = lines.map(function (l) {
-      return [o.id, o.no, o.site, text_(o.orderDate), l.cat, l.name, text_(l.size), l.spec, l.unit, Number(l.qty) || 0, l.remark, who, month, false, l.id || ""];
+      return [o.id, o.no, o.site, text_(o.orderDate), l.cat, l.name, text_(l.size), l.spec, l.unit, Number(l.qty) || 0, l.remark, who, month, false, l.id || "", text_(l.arrTime), text_(l.supplier)];
     });
     var r1 = sl.getLastRow() + 1;
     sl.getRange(r1, 4, rows.length, 1).setNumberFormat("@");
@@ -478,7 +478,7 @@ function rowsToOrders_(ss) {
   if (sl && sl.getLastRow() > 1 && Object.keys(byId).length) {
     sl.getRange(2, 1, sl.getLastRow() - 1, LINE_HEAD.length).getValues().forEach(function (r) {
       var o = byId[r[0]];
-      if (o) o.lines.push({ cat: String(r[4]), name: String(r[5]), size: String(r[6]), spec: String(r[7]), unit: String(r[8]), qty: Number(r[9]) || 0, remark: String(r[10] || "") });
+      if (o) o.lines.push({ cat: String(r[4]), name: String(r[5]), size: String(r[6]), spec: String(r[7]), unit: String(r[8]), qty: Number(r[9]) || 0, remark: String(r[10] || ""), arrTime: String(r[15] || ""), supplier: String(r[16] || "") });
     });
   }
   return out;
@@ -554,7 +554,7 @@ function installEditTrigger() {
 }
 
 var ORDER_EDIT_COLS = { 5: "orderDate", 6: "dueDate", 7: "contact", 8: "contactTel", 13: "note" };
-var LINE_EDIT_COLS = { 6: "name", 7: "size", 8: "spec", 9: "unit", 10: "qty", 11: "remark" };
+var LINE_EDIT_COLS = { 6: "name", 7: "size", 8: "spec", 9: "unit", 10: "qty", 11: "remark", 16: "arrTime", 17: "supplier" };
 
 function onSheetEdit(e) {
   if (!e || !e.range) return;
@@ -624,7 +624,7 @@ function addLineFromSheet_(ss, so, sl, row, lv) {
   if (!hit) { sl.getRange(row, 11).setValue("找不到單號 " + no + "，請確認"); return; }
   var o = hit.order; o.lines = o.lines || [];
   var lid = "s" + Date.now().toString(36);
-  o.lines.push({ id: lid, vk: "c|" + lid, ik: "custom", cat: String(lv[4] || "自訂"), name: nm, size: text_(lv[6]), spec: text_(lv[7]), unit: String(lv[8] || "個"), qty: q, remark: text_(lv[10]) });
+  o.lines.push({ id: lid, vk: "c|" + lid, ik: "custom", cat: String(lv[4] || "自訂"), name: nm, size: text_(lv[6]), spec: text_(lv[7]), unit: String(lv[8] || "個"), qty: q, remark: text_(lv[10]), arrTime: text_(lv[15]), supplier: text_(lv[16]) });
   sl.deleteRow(row);
   saveFromSheet_(so, sl, o, hit.who);
 }

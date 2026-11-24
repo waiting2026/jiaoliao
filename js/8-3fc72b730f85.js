@@ -98,13 +98,16 @@
           '<h3 style="margin:16px 0 4px;font-size:17px">品項（'+o.lines.length+'）</h3><div id="eLines">'+
           o.lines.map(function(l,i){return '<div class="al"><div class="nm">'+esc(l.name)+' <small>'+esc([l.size,l.spec].filter(Boolean).join(" "))+'</small></div>'+
             '<div class="row"><input type="number" inputmode="decimal" min="0" step="any" data-q="'+i+'" value="'+esc(l.qty)+'"><span style="font-size:16px">'+esc(l.unit)+'</span><button class="btn" type="button" data-r="'+i+'" style="color:#dc2626">✕ 移除</button></div>'+
-            '<div class="row" style="grid-template-columns:1fr"><input data-m="'+i+'" placeholder="備註" value="'+esc(l.remark)+'"></div></div>'}).join("")+
+            '<div class="row" style="grid-template-columns:1fr"><input data-m="'+i+'" placeholder="備註" value="'+esc(l.remark)+'"></div>'+
+            '<div class="row" style="grid-template-columns:1fr 1fr"><input data-at="'+i+'" placeholder="到貨時間" value="'+esc(l.arrTime||"")+'"><input data-sv="'+i+'" placeholder="交貨廠商" value="'+esc(l.supplier||"")+'"></div></div>'}).join("")+
           '</div><div class="add"><input id="nName" placeholder="品名"><input id="nSize" placeholder="尺寸"><input id="nUnit" placeholder="單位（個、支…）"><input id="nQty" type="number" inputmode="decimal" placeholder="數量"><button class="btn btn-p" type="button" id="nAdd">＋ 新增品項</button></div>';
       }
       function grab(){
         o.orderDate=d.querySelector("#eOd").value;o.dueDate=d.querySelector("#eDd").value;o.note=d.querySelector("#eNote").value;
         d.querySelectorAll("[data-q]").forEach(function(inp){o.lines[+inp.dataset.q].qty=+inp.value||0});
         d.querySelectorAll("[data-m]").forEach(function(inp){o.lines[+inp.dataset.m].remark=inp.value});
+        d.querySelectorAll("[data-at]").forEach(function(inp){o.lines[+inp.dataset.at].arrTime=inp.value});
+        d.querySelectorAll("[data-sv]").forEach(function(inp){o.lines[+inp.dataset.sv].supplier=inp.value});
       }
       function render(){
         frame("修改 "+esc(o.no||""),esc(o.site)+"・叫料人 "+esc(x.who||""),body(),'<button class="btn" type="button" id="eBack">返回</button><button class="btn btn-p" type="button" id="eSave">儲存修改</button>');
