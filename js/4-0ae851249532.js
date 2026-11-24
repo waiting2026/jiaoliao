@@ -43,7 +43,7 @@ if(!S.presetSites3){
 }
 S.projects.forEach(p=>{if(p.name==="湖口緯創 N1J7冰機"&&!S.projects.find(x=>x.name==="湖口緯創 N1J7冰機機房")){p.name="湖口緯創 N1J7冰機機房";if(p.draft)p.draft.project=p.name}});
 if(!S.presetSites8){S.projects.forEach(p=>{const d=p.draft;if(p.name==="南港冠德"&&d)d.company="澧育有限公司"});S.presetSites8=true}
-if(!S.presetSites7){S.projects.forEach(p=>{const d=p.draft;if(p.name==="內湖緯創"&&d&&(!d.contact||d.contact==="周佳珍")){d.contact="李羿萱";d.contactTel="0960-905-782"}});S.presetSites7=true}
+if(!S.presetSites7){S.projects.forEach(p=>{const d=p.draft;if(p.name==="內湖緯創"&&d&&!d.contact){d.contact="李羿萱";d.contactTel="0960-905-782"}});S.presetSites7=true}
 if(!S.presetSites6){S.projects.forEach(p=>{const d=p.draft;if(!d)return;const co=siteCo(p.name);if(co)d.company=co;const pp=sitePpl(p.name);if(pp.length&&!d.contact){d.contact=pp[0][0];d.contactTel=pp[0][1]}});S.presetSites6=true}
 if(!S.presetSites4){
   const OLDA={"南海段": "台北市中正區泉州街9號"};

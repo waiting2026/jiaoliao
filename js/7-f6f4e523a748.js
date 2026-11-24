@@ -7,7 +7,7 @@
   var CFG_KEY="jiaoliao_sync_cfg";
   var SYNC_URL="https://script.google.com/macros/s/AKfycbwf1DwO6ARo_ePfa3TT3ZPecLmNnqjksK3sPxcIN-5_Obn3mHSQerYo1rRzQRJyNtM/exec";
   // 管理員（可以新增、刪除使用人）。後台 Code.gs 也有同一份名單，以後台為準。
-  var ADMINS=["李羿萱","周佳珍","蔡鴻基"];
+  var ADMINS=["李羿萱","蔡鴻基"];
   // 超過這段時間沒有操作就自動登出（5 分鐘）
   var IDLE_MS=5*60*1000;
   var ACT_KEY="jiaoliao_last_act";
