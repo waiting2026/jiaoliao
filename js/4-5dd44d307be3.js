@@ -1151,7 +1151,12 @@ async function downloadPdf(share){
   if(ok&&!historical&&order.id===draft().id){draft().exported=true;saveOrder()}
 }
 const exportPdf=previewPdf;
-window.__exportTest=exportXlsx;window.__state=()=>S;
+window.__exportTest=exportXlsx;
+window.jiaoliaoExportOrder=async(o,kind)=>{const d=JSON.parse(JSON.stringify(o||{}));d.project=d.project||d.site||"";if(!Array.isArray(d.docs))d.docs=[];["orderDate","dueDate"].forEach(k=>{const m=String(d[k]||"").match(/(\d{4})\D(\d{1,2})\D(\d{1,2})/);d[k]=m?m[1]+"-"+m[2].padStart(2,"0")+"-"+m[3].padStart(2,"0"):""});d.lines=(d.lines||[]).filter(l=>+l.qty>0);
+  if(!d.lines.length)throw new Error("這張單沒有材料（數量要大於 0）");
+  if(kind==="pdf"){const f=await buildPdf(d);return saveFile(f.name,f)}
+  if(typeof ExcelJS==="undefined")throw new Error("Excel 元件載入失敗");
+  return exportWorkbook({name:d.project,orders:[]},monthOf(d.orderDate||today()),d,false,true)};window.__state=()=>S;
 
 // ---------- views ----------
 let view="menu";
