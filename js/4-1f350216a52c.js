@@ -680,12 +680,14 @@ function renderOrder(){
     <label class="f full">公司名稱（Excel 抬頭）<select data-f="company">${COMPANIES.map(n=>`<option ${n===(d.company||S.settings.company)?"selected":""}>${esc(n)}</option>`).join("")}</select></label>
     <label class="f full">工程名稱<select data-f="project">${[...new Set([...S.projects.map(p=>p.name),d.project].filter(Boolean))].map(n=>`<option ${n===d.project?"selected":""}>${esc(n)}</option>`).join("")}</select></label>
     <label class="f">訂貨日期<input type="date" data-f="orderDate" value="${esc(d.orderDate)}"></label>
-    <label class="f">預定交貨日期<input type="date" data-f="dueDate" value="${esc(d.dueDate)}"></label>
+    <label class="f">交貨日期<input type="date" data-f="dueDate" value="${esc(d.dueDate)}"></label>
     <label class="f">到貨狀況<input data-f="arrival" list="arrList" value="${esc(d.arrival||"")}" placeholder="例如：已到貨、部分到貨"><datalist id="arrList"><option>未到貨</option><option>部分到貨</option><option>已到貨</option></datalist></label>
     <div class="f full"><label class="f" style="margin:0">交貨方式</label><div class="opts">${["工務所","工地","自取"].map(m=>`<label><input type="radio" name="mode" value="${m}" ${d.mode===m?"checked":""}> ${m}</label>`).join("")}</div></div>
     <label class="f full">交貨地點（地址）<input data-f="addr" value="${esc(d.addr)}" placeholder="例如：新竹縣湖口鄉…"></label>
     ${sitePpl(d.project).length>1?`<label class="f full ppl">選擇收貨人<select data-pplsel>${sitePpl(d.project).some(x=>x[0]===d.contact)?"":`<option value="">（請選擇）</option>`}${sitePpl(d.project).map((x,i)=>`<option value="${i}" ${x[0]===d.contact?"selected":""}>${esc(x[0])}　${esc(x[1])}</option>`).join("")}</select></label>`:""}<label class="f">收貨人<input data-f="contact" value="${esc(d.contact)}"></label>
     <label class="f">收貨人電話<input data-f="contactTel" value="${esc(d.contactTel)}" inputmode="tel"></label>
+    ${sitePpl(d.project).length>1?`<label class="f full ppl">第二位收貨人<select data-pplsel2><option value="">（不用／手動填）</option>${sitePpl(d.project).map((x,i)=>`<option value="${i}" ${x[0]===d.contact2?"selected":""}>${esc(x[0])}　${esc(x[1])}</option>`).join("")}</select></label>`:""}<label class="f">第二位收貨人<input data-f="contact2" value="${esc(d.contact2||"")}"></label>
+    <label class="f">第二位收貨人電話<input data-f="contactTel2" value="${esc(d.contactTel2||"")}" inputmode="tel"></label>
     <div class="f full"><label class="f" style="margin:0">附查驗用證明文件</label><div class="opts">${DOCS.map(x=>`<label><input type="checkbox" data-doc="${x}" ${d.docs.includes(x)?"checked":""}> ${x}</label>`).join("")}<input data-f="docOther" value="${esc(d.docOther)}" placeholder="其它說明" style="border:1px solid #d1d5db;border-radius:8px;padding:4px 8px;min-width:120px"></div></div>
    </div></div>
   <details class="card vend" ${window.__vendOpen?"open":""} ontoggle="window.__vendOpen=this.open"><summary class="sec">🏭 廠商<span class="vsum">${esc(d.vendor||"")}</span><span class="vchev">點我展開 ▾</span></summary><div class="grid">
@@ -714,7 +716,7 @@ function renderOrder(){
     persist();
     
   };
-  v.onchange=e=>{const t=e.target;if(t.dataset.pplsel!==undefined){const x=sitePpl(d.project)[+t.value];if(x){d.contact=x[0];d.contactTel=x[1];persist();renderOrder()}return}if(t.tagName==="SELECT"&&t.dataset.f){d[t.dataset.f]=t.value;persist()}};
+  v.onchange=e=>{const t=e.target;if(t.dataset.pplsel2!==undefined){const x=sitePpl(d.project)[+t.value];d.contact2=t.value!==""&&x?x[0]:"";d.contactTel2=t.value!==""&&x?x[1]:"";persist();renderOrder();return}if(t.dataset.pplsel!==undefined){const x=sitePpl(d.project)[+t.value];if(x){d.contact=x[0];d.contactTel=x[1];persist();renderOrder()}return}if(t.tagName==="SELECT"&&t.dataset.f){d[t.dataset.f]=t.value;persist()}};
   v.onclick=e=>{const t=e.target;const row=t.closest(".line");
     if(row){const l=d.lines.find(z=>z.id===row.dataset.id);
       if(t.classList.contains("del")){d.lines=d.lines.filter(z=>z!==l);persist();renderOrder();updateCart();return}
@@ -923,7 +925,7 @@ function fillOrderSheet(ws,d){
   ws.getCell("B5").value=d.project||"";ws.getCell("G5").value=dt(d.orderDate);ws.getCell("G6").value=dt(d.dueDate);
   ws.getCell("B6").value=["工務所","工地","自取"].map(m=>(d.mode===m?"█":"□")+m).join("  ");
   ws.getCell("B7").value=d.addr||"";
-  ws.getCell("F7").value="收貨人";ws.getCell("G7").value=d.contact||"";ws.getCell("F8").value="收貨人電話";ws.getCell("G8").value=d.contactTel||"";["F","G"].forEach(c=>{ws.getCell(c+"8").alignment=JSON.parse(JSON.stringify(ws.getCell(c+"7").alignment||{}));ws.getCell(c+"8").font=JSON.parse(JSON.stringify(ws.getCell(c+"7").font||{}))});
+  ws.getCell("F6").value="交貨日期";ws.getCell("F7").value="收貨人";ws.getCell("G7").value=d.contact||"";ws.getCell("F8").value="收貨人電話";ws.getCell("G8").value=d.contactTel||"";["F","G"].forEach(c=>{ws.getCell(c+"8").alignment=JSON.parse(JSON.stringify(ws.getCell(c+"7").alignment||{}));ws.getCell(c+"8").font=JSON.parse(JSON.stringify(ws.getCell(c+"7").font||{}))});
   const ck=x=>(d.docs.includes(x)?"■":"□")+x;
   ws.getCell("B8").value=["保固書","測試報告","進口證明及銷售證明","中文操作說明"].map(ck).join(" ");
   ws.getCell("B9").value=["竣工圖","出廠證明","產地證明"].map(ck).join(" ")+" "+ck("其它")+"︰"+(d.docOther||"");
@@ -961,7 +963,10 @@ function addArrCols(ws,d,FIRST,last,noteR){
   }
   const unmerge=a=>{try{ws.unMergeCells(a)}catch(e){}},merge=a=>{try{ws.mergeCells(a)}catch(e){}};
   unmerge("A1:G2");merge("A1:I2");unmerge("A3:G4");merge("A3:I4");unmerge(`A${noteR}:G${noteR}`);merge(`A${noteR}:I${noteR}`);
-  for(let r=5;r<=11;r++)merge(`G${r}:I${r}`);
+  for(let r=5;r<=11;r++)if(r!==7&&r!==8)merge(`G${r}:I${r}`);
+  [7,8].forEach(r=>{merge(`H${r}:I${r}`);const g=ws.getCell("G"+r),h=ws.getCell("H"+r);h.alignment=cp(g.alignment);h.font=cp(g.font);
+    const gb=cp(g.border);gb.right={style:"thin"};g.border=gb;const hb=cp(h.border);hb.left={style:"thin"};h.border=hb;});
+  ws.getCell("H7").value=d.contact2||"";ws.getCell("H8").value=d.contactTel2||"";
   ws.getCell("H12").value="到貨狀況";ws.getCell("I12").value="交貨廠商";
   for(let r=FIRST;r<=last;r++){const l=d.lines[r-FIRST],row=ws.getRow(r);
     [8,9].forEach(c=>{const ce=row.getCell(c);ce.value=l?(c===8?l.arrTime:l.supplier)||"":null;ce.font=Object.assign({},ce.font,{size:11});ce.alignment={horizontal:"center",vertical:"middle",wrapText:true}})}
@@ -1076,9 +1081,9 @@ function buildPages(d){
     const top=pi===0?`<div class="pc">${esc(company)}</div><div class="pt">${esc(title)}${d.no?"　No. "+esc(d.no):""}</div>
   <table class="ph"><colgroup><col style="width:13%"><col style="width:52%"><col style="width:15%"><col style="width:20%"></colgroup>
    <tr><th>工程名稱</th><td>${esc(d.project||"")}</td><th>訂貨日期</th><td class="c">${fmtDate(d.orderDate)}</td></tr>
-   <tr><th>交貨地點</th><td>${mode}</td><th>預定交貨日期</th><td class="c">${fmtDate(d.dueDate)}</td></tr>
-   <tr><th>交貨地點</th><td>${esc(d.addr||"")}</td><th>收貨人</th><td class="c">${esc(d.contact||"")}</td></tr>
-   <tr><th rowspan="2">附查驗用<br>證明文件</th><td class="sm">${docs1}</td><th>收貨人電話</th><td class="c">${esc(d.contactTel||"")}</td></tr>
+   <tr><th>交貨地點</th><td>${mode}</td><th>交貨日期</th><td class="c">${fmtDate(d.dueDate)}</td></tr>
+   <tr><th>交貨地點</th><td>${esc(d.addr||"")}</td><th>收貨人</th><td class="c">${esc(d.contact||"")}${d.contact2?"　/　"+esc(d.contact2):""}</td></tr>
+   <tr><th rowspan="2">附查驗用<br>證明文件</th><td class="sm">${docs1}</td><th>收貨人電話</th><td class="c">${esc(d.contactTel||"")}${d.contactTel2?"　/　"+esc(d.contactTel2):""}</td></tr>
    <tr><td colspan="3" class="sm">${docs2}</td></tr>
    <tr><th rowspan="2">廠商名稱</th><td rowspan="2">${esc(d.vendor||"")}${d.vendorContact?`<br><span class="sm">聯絡人：${esc(d.vendorContact)}</span>`:""}</td><th>公司電話</th><td class="c">${esc(d.vendorTel||"")}</td></tr>
    <tr><th>公司傳真</th><td class="c">${esc(d.vendorFax||"")}</td></tr></table>`

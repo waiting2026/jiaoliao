@@ -27,7 +27,7 @@
   function pack(p,o){
     return{
       id:o.id,no:o.no,site:o.project||p.name,company:o.company||"",
-      orderDate:o.orderDate||"",dueDate:o.dueDate||"",contact:o.contact||"",contactTel:o.contactTel||"",
+      orderDate:o.orderDate||"",dueDate:o.dueDate||"",contact:o.contact||"",contactTel:o.contactTel||"",contact2:o.contact2||"",contactTel2:o.contactTel2||"",
       exported:!!o.exported,saved:o.saved||0,note:o.note||"",adminRev:o.adminRev||0,
       lines:(o.lines||[]).map(function(l){return{id:l.id||"",vk:l.vk||"",ik:l.ik||"",len:l.len||"",cat:l.cat||"",name:l.name||"",size:l.size==null?"":String(l.size),spec:l.spec||"",unit:l.unit||"",qty:+l.qty||0,remark:l.remark||"",arrTime:l.arrTime||"",supplier:l.supplier||""}})
     };
@@ -188,7 +188,7 @@
         var x=srv[o.id];
         if(x&&x.rev>(o.adminRev||0)){
           var d=x.order;
-          ["orderDate","dueDate","contact","contactTel","company","note"].forEach(function(k){if(d[k]!=null)o[k]=d[k]});
+          ["orderDate","dueDate","contact","contactTel","contact2","contactTel2","company","note"].forEach(function(k){if(d[k]!=null)o[k]=d[k]});
           o.lines=(d.lines||[]).map(function(sl){
             var ll=null;for(var i=0;i<(o.lines||[]).length;i++)if(sl.id&&o.lines[i].id===sl.id){ll=o.lines[i];break}
             var n=Object.assign({},ll||{list:null,priceNote:"",price:null},sl);
