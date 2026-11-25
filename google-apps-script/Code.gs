@@ -739,9 +739,36 @@ function saveRow_(body, who) {
 // ---------- 電腦版：出貨核對 ----------
 // 試算表「出貨核對」分頁一張叫料單一列；照片存在雲端硬碟「叫料小幫手_出貨照片／工地／年-月」資料夾，只有這個 Google 帳號看得到。
 var SH_SHIP = "出貨核對";
-var SHIP_HEAD = ["訂單ID", "單號", "工地", "狀態", "核對人", "核對時間", "備註", "照片（檔案ID）", "到貨數量（程式用）", "照片判讀文字"];
+var SHIP_HEAD = ["訂單ID", "單號", "工地", "狀態", "核對人", "核對時間", "備註", "照片（檔案ID）", "到貨數量（程式用）", "照片判讀文字", "出貨單明細（程式用）"];
+// 每張出貨單上的廠商品名、數量（之後對帳單核對用）；儲存出貨核對時整張叫料單的明細會重寫
+var SH_SLIP = "出貨明細";
+var SLIP_HEAD = ["叫料單ID", "叫料單號", "工地", "廠商", "出貨單號", "出貨日期", "廠商品名（出貨單上）", "數量", "對應叫料品項", "照片（檔案ID）", "核對人", "核對時間"];
+function slipWrite_(id, no, site, slips, who, now) {
+  var sh = ensureSheet_(book_(), SH_SLIP, SLIP_HEAD);
+  if (sh.getFrozenRows() < 1) sh.setFrozenRows(1);
+  var n = sh.getLastRow() - 1;
+  if (n > 0) {
+    var ids = sh.getRange(2, 1, n, 1).getValues();
+    for (var i = n - 1; i >= 0; i--) if (String(ids[i][0]) === String(id)) sh.deleteRow(i + 2);
+  }
+  var rows = [];
+  (slips || []).forEach(function (s) {
+    (s.items || []).forEach(function (it) {
+      if (!String(it.name || "").trim()) return;
+      rows.push([id, no, site, s.vendor || "", s.no || "", s.date || "", it.name, it.qty === "" || it.qty == null ? "" : it.qty, it.lkName || "", s.fileId || "", who, now].map(String));
+    });
+  });
+  if (rows.length) {
+    var r0 = sh.getLastRow() + 1;
+    sh.getRange(r0, 1, rows.length, SLIP_HEAD.length).setNumberFormat("@").setValues(rows);
+  }
+}
 var SHIP_ROOT = "叫料小幫手_出貨照片";
-function shipSheet_() { return ensureSheet_(book_(), SH_SHIP, SHIP_HEAD); }
+function shipSheet_() {
+  var sh = ensureSheet_(book_(), SH_SHIP, SHIP_HEAD);
+  if (sh.getLastColumn() < SHIP_HEAD.length) sh.getRange(1, 1, 1, SHIP_HEAD.length).setValues([SHIP_HEAD]).setFontWeight("bold").setBackground("#e8f0e4");
+  return sh;
+}
 function shipRows_(sh) {
   var n = sh.getLastRow() - 1;
   return n > 0 ? sh.getRange(2, 1, n, SHIP_HEAD.length).getValues() : [];
@@ -749,9 +776,11 @@ function shipRows_(sh) {
 function shipRec_(r) {
   var recv = {};
   try { recv = JSON.parse(r[8] || "{}"); } catch (e) {}
+  var slips = [];
+  try { slips = JSON.parse(r[10] || "[]"); } catch (e) {}
   return { id: String(r[0]), no: String(r[1]), site: String(r[2]), status: String(r[3]), who: String(r[4]),
     at: r[5] instanceof Date ? Utilities.formatDate(r[5], "Asia/Taipei", "yyyy-MM-dd HH:mm") : String(r[5]),
-    note: String(r[6]), photos: String(r[7]).split(",").filter(String), recv: recv, text: String(r[9] || "") };
+    note: String(r[6]), photos: String(r[7]).split(",").filter(String), recv: recv, text: String(r[9] || ""), slips: slips };
 }
 function shipFind_(sh, id) {
   var rows = shipRows_(sh);
@@ -759,7 +788,7 @@ function shipFind_(sh, id) {
   return null;
 }
 function shipPut_(sh, body, f, patch) {
-  var r = f ? f.r : [String(body.id), "", "", "", "", "", "", "", "{}", ""];
+  var r = f ? f.r : [String(body.id), "", "", "", "", "", "", "", "{}", "", "[]"];
   r[1] = String(body.no || r[1]); r[2] = String(body.site || r[2]);
   patch(r);
   var row = f ? f.row : sh.getLastRow() + 1;
@@ -799,10 +828,13 @@ function ship_(body, who) {
   var f = shipFind_(sh, id);
   if (body.action === "shipGet") return { ok: true, ship: f ? shipRec_(f.r) : null };
   if (body.action === "shipSave") {
-    return { ok: true, ship: shipPut_(sh, body, f, function (r) {
+    var rec = shipPut_(sh, body, f, function (r) {
       r[3] = String(body.status || ""); r[4] = who; r[5] = now; r[6] = String(body.note || "");
       r[8] = JSON.stringify(body.recv || {});
-    }) };
+      if (body.slips) r[10] = JSON.stringify(body.slips).slice(0, 45000);
+    });
+    if (body.slips) slipWrite_(id, String(body.no || rec.no), String(body.site || rec.site), body.slips, who, now);
+    return { ok: true, ship: rec };
   }
   if (body.action === "shipPhoto") {
     var data = String(body.data || "");

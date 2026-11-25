@@ -93,6 +93,7 @@ tr.sel td{background:var(--accl)}
 .phs{display:flex;flex-wrap:wrap;gap:10px;margin-top:8px}.ph{position:relative;width:120px;height:120px;border-radius:12px;overflow:hidden;background:#eef0f3;display:flex;align-items:center;justify-content:center;cursor:zoom-in;font-size:12px;color:var(--mu)}.ph img{width:100%;height:100%;object-fit:cover}
 .phx{position:absolute;top:4px;right:4px;width:26px;height:26px;border-radius:50%;border:0;background:rgba(0,0,0,.55);color:#fff;font-size:16px;line-height:26px;cursor:pointer;padding:0}
 .phbig{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:200;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;cursor:zoom-out;color:#fff;font-size:13px}.phbig img{max-width:94vw;max-height:88vh;border-radius:8px}
+.slip{border:1px solid var(--bd,#e3e6ea);border-radius:10px;padding:10px;margin-top:8px}.slh{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-bottom:6px}.slh label{font-size:12px;color:var(--mu)}.slh .in{display:block;width:170px}.slh .btn{margin-left:auto}.slt{width:100%}.slt td,.slt th{padding:3px 4px}.slt td:first-child .in{width:100%;min-width:220px}.slt select.in{width:100%;min-width:240px}.slt tr.nolk td:first-child .in{background:#fff6d6}
 .ocr{white-space:pre-wrap;background:#f6f7f9;border-radius:10px;padding:10px;font-size:12px;max-height:220px;overflow:auto;margin:6px 0 0}.s-bad{background:var(--redl);color:var(--red)}.s-wait{background:var(--amberl);color:var(--amber)}.s-go{background:var(--accl);color:var(--acc2)}
 .note{margin:12px 18px;background:var(--accl);border-radius:14px;padding:10px 14px}
 .warn{margin:12px 18px;background:var(--amberl);border-radius:14px;padding:10px 14px}
@@ -647,6 +648,9 @@ function pShip(){
 function shipDetail(x){
   var o=O(x),r=shipOf(x)||{photos:[],recv:{}};
   var d=S.shipD&&S.shipD.id===x.id?S.shipD:(S.shipD={id:x.id,recv:JSON.parse(JSON.stringify(r.recv||{})),note:r.note||"",sug:{},dirty:false});
+  if(!d.loaded&&r.photos&&r.photos.length){d.loaded=1;api({action:"shipGet",id:x.id}).then(function(j){if(!j.ok||!j.ship||S.shipD!==d)return;d.text=d.text||j.ship.text||"";d.slips=d.slips||j.ship.slips||[];
+      if(!d.slips.length&&d.text){var s0=parseSlip(d.text);if(s0.items.length){s0.fileId=r.photos[r.photos.length-1];matchSlip(x,s0);d.slips=[s0];d.slipNew=1}}if(S.page==="ship")shipRefresh()})}
+  else if(!d.loaded){d.loaded=1;d.slips=d.slips||r.slips||[]}
   var c=shipCalc(x,d.recv);
   var lab={ok:'<span class="st s-ok">到齊</span>',short:'<span class="st s-bad">少送</span>',none:'<span class="st s-bad">沒到</span>',over:'<span class="st s-warn">多送</span>',"":'<span class="st s-none">未填</span>'};
   var rows=lines(x).map(function(l,i){var k=lkey(l,i),v=d.recv[k];v=v===undefined?"":v;var diff=v===""?"":(+v-(+l.qty||0));
@@ -664,12 +668,44 @@ function shipDetail(x){
    '<div class="tw"><table class="shipt"><tr><th>#</th><th>品名</th><th class="n">叫料</th><th class="n">到貨</th><th>狀態</th></tr>'+rows+'</table></div>'+
    '<div style="padding:10px 18px"><b style="font-size:13px">出貨單照片</b><div class="phs">'+(ph||'<span style="color:var(--mu);font-size:13px">還沒有照片。可以一次選多張，手機會直接開相機。</span>')+'</div>'+
    (d.text?'<details style="margin-top:8px"><summary style="cursor:pointer;color:var(--mu);font-size:13px">看照片讀到的文字</summary><pre class="ocr">'+esc(d.text)+'</pre></details>':'')+
+   '<div class="slips"><div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-top:14px"><b style="font-size:13px">出貨單明細（記錄廠商品名，之後對帳單來可以核對）</b><small style="color:var(--mu)">照片讀到的品名和數量會自動列在這裡，可以修改；「對應叫料品項」選好後按「用明細重新計算」</small></div>'+
+     (d.slipNew?'<div class="note" style="margin:6px 0">這張單之前上傳的照片，系統用新方法重新讀出下面的明細，請確認後按「儲存核對結果」。</div>':'')+
+     (d.slips||[]).map(function(s,si){return '<div class="slip"><div class="slh"><label>廠商<input class="in" data-slv="'+si+'|vendor" value="'+esc(s.vendor||"")+'"></label><label>出貨單號<input class="in" data-slv="'+si+'|no" value="'+esc(s.no||"")+'"></label><label>出貨日期<input class="in" data-slv="'+si+'|date" value="'+esc(s.date||"")+'" placeholder="2026-11-25"></label><button type="button" class="btn sm danger" data-slx="'+si+'">刪除這張</button></div>'+
+       '<table class="slt"><tr><th>廠商品名（出貨單上）</th><th class="n">數量</th><th>對應叫料品項</th><th></th></tr>'+(s.items||[]).map(function(it,ii){return '<tr'+(it.lk?'':' class="nolk"')+'><td><input class="in" data-sli="'+si+'|'+ii+'|name" value="'+esc(it.name||"")+'"></td><td class="n"><input class="in" data-sli="'+si+'|'+ii+'|qty" value="'+esc(it.qty==null?"":it.qty)+'" inputmode="decimal" style="width:70px;text-align:right"></td><td><select class="in" data-sli="'+si+'|'+ii+'|lk">'+'<option value="">（沒有對應）</option>'+lines(x).map(function(l,i){var k=lkey(l,i);return '<option value="'+esc(k)+'" '+(k===it.lk?"selected":"")+'>'+esc((i+1)+". "+lineLabel(l)+" "+[l.size,l.spec].filter(Boolean).join(" ")+"（叫 "+(l.qty||0)+" "+(l.unit||"")+"）")+'</option>'}).join("")+'</select></td><td><button type="button" class="btn sm" data-slix="'+si+'|'+ii+'" aria-label="刪除這一行">×</button></td></tr>'}).join("")+'</table>'+
+       '<button type="button" class="btn sm" data-sliadd="'+si+'" style="margin-top:6px">＋ 加一行</button></div>'}).join("")+
+     '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"><button type="button" class="btn" data-sladd="1">＋ 手動新增一張出貨單</button>'+((d.slips||[]).length?'<button type="button" class="btn" data-slre="1">↻ 用明細重新計算到貨數量</button>':'')+'</div></div>'+
    '<label style="display:block;margin-top:10px;font-size:13px">備註（例如：少送的會補、哪裡有問題）<textarea class="in" id="shNote" rows="2" style="width:100%">'+esc(d.note)+'</textarea></label>'+
    '<div class="actions" style="padding:10px 0 4px"><button type="button" class="btn pri" data-shsave="1">💾 儲存核對結果</button>'+(d.dirty?'<span style="color:var(--acc2);font-size:13px">還沒儲存</span>':'')+'</div></div></div>';
 }
 function loadImg(fid){S.img=S.img||{};if(S.img[fid]||S.img["_"+fid])return;S.img["_"+fid]=1;
   api({action:"shipImg",id:S.shipSel,fileId:fid}).then(function(j){if(j.ok){S.img[fid]="data:"+j.mime+";base64,"+j.data;if(S.page==="ship")shipRefresh()}})}
 function shipRefresh(){var y=scrollY;render();scrollTo(0,y)}
+// ---------- 出貨單解析（廠商品名＋數量）----------
+function slipNorm(s){return String(s||"").replace(/[！-～]/g,function(c){return String.fromCharCode(c.charCodeAt(0)-0xFEE0)}).replace(/[″”〃]/g,'"').replace(/[×*]/g,"x").toLowerCase()}
+function numToks(s){s=slipNorm(s).replace(/(\d+(?:\.\d+)?)\s*分/g,function(m,n){return String(+(n/8).toFixed(3))+'"'});var out={},re=/(\d+)\s*-\s*(\d+)\/(\d+)|(\d+)\/(\d+)|(\d+(?:\.\d+)?)/g,m;
+  while((m=re.exec(s))){var v=m[1]?(+m[1]+m[2]/m[3]):m[4]?(m[4]/m[5]):+m[6];out[String(+v.toFixed(3))]=1}return Object.keys(out)}
+function slipCjk(s){return slipNorm(s).replace(/電鍍鋅|熱浸鋅/g,"鍍鋅").replace(/白鐵|不鏽鋼/g,"不銹鋼").replace(/膨脹螺絲|膨脹螺栓/g,"壁虎").replace(/ㄇ型槽鐵|c型槽鐵/g,"槽鐵").replace(/[^\u4e00-\u9fff]/g,"")}
+function slipDice(a,b){if(!a||!b)return 0;if(a===b)return 1;var A={},n=0,ta=0,tb=0,i,g;for(i=0;i<a.length-1;i++){g=a.substr(i,2);A[g]=(A[g]||0)+1;ta++}for(i=0;i<b.length-1;i++){g=b.substr(i,2);tb++;if(A[g]){A[g]--;n++}}return ta+tb?2*n/(ta+tb):0}
+var SLIP_U="(?:支|個|只|組|箱|m|米|包|片|套|件|顆|捲|條|pcs|kg|公斤)";
+function parseSlip(text){
+  var L=String(text||"").split(/\r?\n/).map(function(s){return s.replace(/^[\s\/|_\-•·．.]+/,"").trim()}).filter(Boolean),s={vendor:"",no:"",date:"",items:[]};
+  for(var i=0;i<L.length&&!s.vendor;i++){var m=L[i].match(/([\u4e00-\u9fffA-Za-z0-9]{2,20}?(?:股份有限公司|有限公司|企業社|企業行|商行|五金行|實業))/);if(m&&!/聖和/.test(m[1]))s.vendor=m[1]}
+  for(var j=0;j<L.length&&!s.no;j++){var t=L[j].toUpperCase().match(/\b(?=[A-Z0-9-]*\d)(?=[A-Z0-9-]*[A-Z])[A-Z0-9-]{8,20}\b/);if(t&&!/^TEL/.test(t[0]))s.no=t[0]}
+  var dm=String(text).match(/(20\d{2})\s*[\/\-.年]\s*(\d{1,2})\s*[\/\-.月]\s*(\d{1,2})/),rm=String(text).match(/\b(1\d{2})\s*[\/\-.]\s*(\d{1,2})\s*[\/\-.]\s*(\d{1,2})\b/);
+  if(dm)s.date=dm[1]+"-"+("0"+dm[2]).slice(-2)+"-"+("0"+dm[3]).slice(-2);else if(rm)s.date=(+rm[1]+1911)+"-"+("0"+rm[2]).slice(-2)+"-"+("0"+rm[3]).slice(-2);
+  var st=0;for(var k=0;k<L.length;k++)if(/品名/.test(L[k])){st=k+1;break}
+  var STOP=/簽收|合計|總計|小計|注意事項|貨物之|退貨|倉管|揀貨|貨款/,HDR=/公司|tel|電話|地址|客戶|交貨|日期|單號|項次|品名|數量|單位|預計|總重|聯絡|配送|卸貨|備註|傳真|fax|統編|頁次|金額|單價/i;
+  var names=[],qtys=[],qre=new RegExp("^(\\d{1,4}(?:\\.\\d+)?)\\s*"+SLIP_U+"?$","i"),inl=new RegExp("^(.*?\\S)\\s+(\\d{1,4}(?:\\.\\d+)?)\\s*"+SLIP_U+"\\s*$","i");
+  for(var r=st;r<L.length;r++){var ln=L[r];if(STOP.test(ln))break;var q=ln.match(qre);if(q){if(names.length)qtys.push(+q[1]);continue}
+    if(/[\u4e00-\u9fff]/.test(ln)&&/\d/.test(ln)&&ln.length>=4&&!HDR.test(ln)&&slipCjk(ln).length>=2){var im=ln.match(inl);names.push(im?{name:im[1],qty:+im[2]}:{name:ln,qty:null})}}
+  var pend=names.filter(function(n){return n.qty==null});if(pend.length&&qtys.length===pend.length)pend.forEach(function(n,i){n.qty=qtys[i]});
+  s.items=names.map(function(n){return {name:n.name,qty:n.qty==null?"":n.qty,lk:""}});return s}
+function matchSlip(x,s){var ls=lines(x),P=[];
+  s.items.forEach(function(it,a){var A=numToks(it.name),ca=slipCjk(it.name);ls.forEach(function(l,b){var B=numToks(lineLabel(l)+" "+(l.size||"")+" "+(l.spec||""));
+    var inter=B.filter(function(v){return A.indexOf(v)>=0}).length,num=B.length?inter/B.length:0,txt=slipDice(ca,slipCjk(lineLabel(l)));
+    P.push({a:a,b:b,s:.5*txt+.5*num+(it.qty!==""&&+it.qty===(+l.qty||0)?.25:0)})})});
+  P.sort(function(p,q){return q.s-p.s});var ua={},ub={};P.forEach(function(p){if(p.s<.4||ua[p.a]||ub[p.b])return;ua[p.a]=ub[p.b]=1;s.items[p.a].lk=lkey(ls[p.b],p.b)});return s}
+function slipRecv(x,d){var m={};(d.slips||[]).forEach(function(s){(s.items||[]).forEach(function(it){if(it.lk&&it.qty!==""&&it.qty!=null&&isFinite(+it.qty))m[it.lk]=(m[it.lk]||0)+(+it.qty)})});return m}
 function normT(s){return String(s||"").replace(/[！-～]/g,function(c){return String.fromCharCode(c.charCodeAt(0)-0xFEE0)}).replace(/[″”〃]/g,'"').replace(/[′’]/g,"'").replace(/\s+/g,"").toLowerCase()}
 // 用照片讀到的文字找每個品項的到貨數量。Google 讀表格常把每一格拆成一行，所以從品名那行往下找，直到下一個品項為止；優先取「數字＋單位」（例如 45支）。
 function ocrMatch(x,text){
@@ -687,8 +723,8 @@ function ocrMatch(x,text){
     out[lkey(l,i)]=nums.indexOf(w)>=0?w:nums[nums.length-1]});
   return out;
 }
-function applyOcr(x,d,text){var m=ocrMatch(x,text),n=0;Object.keys(m).forEach(function(k){if(d.recv[k]===undefined||d.recv[k]===""||d.sug[k]){d.recv[k]=m[k];d.sug[k]=1;n++}});d.dirty=d.dirty||n>0;
-  if(!n){d.msg='照片上的字沒有對到品項，請手動填數量。';return}
+function applyOcr(x,d,text){var m=ocrMatch(x,text||""),sm=slipRecv(x,d),n=0;Object.keys(sm).forEach(function(k){m[k]=sm[k]});Object.keys(m).forEach(function(k){if(d.recv[k]===undefined||d.recv[k]===""||d.sug[k]){d.recv[k]=m[k];d.sug[k]=1;n++}});d.dirty=d.dirty||n>0;
+  if(!n){d.msg='照片上的字沒有對到品項，請在下面「出貨單明細」選對應的叫料品項，或手動填數量。';return}
   var c=shipCalc(x,d.recv),ls=lines(x),bad=[],miss=[];
   ls.forEach(function(l,i){var s=c.line[lkey(l,i)];if(s==="short"||s==="none")bad.push(lineLabel(l)+" "+(l.size||"")+"（叫 "+(+l.qty||0)+"，到 "+d.recv[lkey(l,i)]+"）");else if(s==="over")bad.push(lineLabel(l)+" "+(l.size||"")+"（多送）");else if(!s)miss.push(lineLabel(l)+" "+(l.size||""))});
   var head=c.status==="已到齊"?'<b style="color:#1e7d32">判讀結果：全部到齊 ✓</b>':c.status==="有短少"?'<b style="color:#c0392b">判讀結果：有短少</b>':c.status==="有多送"?'<b style="color:#b26a00">判讀結果：有多送</b>':'<b>判讀結果：部分品項已對到</b>';
@@ -702,24 +738,33 @@ function shipClick(e){
   if(q("[data-shall]")){lines(x).forEach(function(l,i){d.recv[lkey(l,i)]=+l.qty||0});d.sug={};d.dirty=true;d.msg="";shipRefresh();return true}
   if(q("[data-shclr]")){d.recv={};d.sug={};d.dirty=true;d.msg="";shipRefresh();return true}
   if(q("[data-shocr]")){applyOcr(x,d,d.text);shipRefresh();return true}
+  if(q("[data-slre]")){applyOcr(x,d,d.text||"");shipRefresh();return true}
+  if(q("[data-sladd]")){d.slips=(d.slips||[]).concat([{vendor:"",no:"",date:TODAY,items:[{name:"",qty:"",lk:""}]}]);d.dirty=true;shipRefresh();return true}
+  if(t=q("[data-slx]")){if(!confirm("刪除這張出貨單明細？（照片不會刪）"))return true;d.slips.splice(+t.dataset.slx,1);d.dirty=true;shipRefresh();return true}
+  if(t=q("[data-sliadd]")){d.slips[+t.dataset.sliadd].items.push({name:"",qty:"",lk:""});d.dirty=true;shipRefresh();return true}
+  if(t=q("[data-slix]")){var p2=t.dataset.slix.split("|");d.slips[+p2[0]].items.splice(+p2[1],1);d.dirty=true;shipRefresh();return true}
   if(t=q("[data-phdel]")){if(!confirm("刪除這張照片？（會移到雲端硬碟的垃圾桶）"))return true;api({action:"shipDelPhoto",id:x.id,fileId:t.dataset.phdel}).then(function(j){if(!j.ok)throw new Error(j.error);S.ships[x.id]=j.ship;shipRefresh();toast("已刪除照片")}).catch(function(err){toast("刪除失敗："+(err.message||err))});return true}
   if(t=q("[data-phview]")){var src=S.img&&S.img[t.dataset.phview];if(src){var v=document.createElement("div");v.className="phbig";v.innerHTML='<img src="'+src+'" alt="出貨照片"><span>點一下關閉</span>';v.onclick=function(){v.remove()};document.body.appendChild(v)}return true}
   if(t=q("[data-shsave]")){var c=shipCalc(x,d.recv),o=O(x);t.disabled=true;t.textContent="儲存中…";
-    api({action:"shipSave",id:x.id,no:o.no,site:o.site,recv:d.recv,status:c.status,note:($("shNote")||{}).value||""}).then(function(j){if(!j.ok)throw new Error(j.error);S.ships[x.id]=j.ship;S.shipD=null;toast("已儲存："+(c.status||"未核對"));render()}).catch(function(err){t.disabled=false;t.textContent="💾 儲存核對結果";toast("儲存失敗："+(err.message||err))});return true}
+    api({action:"shipSave",id:x.id,no:o.no,site:o.site,recv:d.recv,status:c.status,note:($("shNote")||{}).value||"",slips:(d.slips||[]).map(function(s){return {vendor:s.vendor||"",no:s.no||"",date:s.date||"",fileId:s.fileId||"",items:(s.items||[]).filter(function(it){return String(it.name||"").trim()}).map(function(it){var li=-1;lines(x).forEach(function(l,i){if(lkey(l,i)===it.lk)li=i});var l=li>=0?lines(x)[li]:null;return {name:String(it.name).trim(),qty:it.qty===""||it.qty==null?"":+it.qty,lk:it.lk||"",lkName:l?(lineLabel(l)+" "+[l.size,l.spec].filter(Boolean).join(" ")).trim():""}})}})}).then(function(j){if(!j.ok)throw new Error(j.error);S.ships[x.id]=j.ship;S.shipD=null;toast("已儲存："+(c.status||"未核對"));render()}).catch(function(err){t.disabled=false;t.textContent="💾 儲存核對結果";toast("儲存失敗："+(err.message||err))});return true}
   return false;
 }
 function shipInput(e){if(S.page!=="ship"||!S.shipD)return false;var t=e.target;
   if(t.dataset.recv!==undefined){S.shipD.recv[t.dataset.recv]=t.value===""?"":+t.value;delete S.shipD.sug[t.dataset.recv];S.shipD.dirty=true;return true}
-  if(t.id==="shNote"){S.shipD.note=t.value;S.shipD.dirty=true;return true}return false}
+  if(t.id==="shNote"){S.shipD.note=t.value;S.shipD.dirty=true;return true}
+  if(t.dataset.slv){var a=t.dataset.slv.split("|");S.shipD.slips[+a[0]][a[1]]=t.value;S.shipD.dirty=true;return true}
+  if(t.dataset.sli){var b=t.dataset.sli.split("|"),it=S.shipD.slips[+b[0]].items[+b[1]];it[b[2]]=b[2]==="qty"?(t.value.trim()===""?"":qtyNum(t.value)):t.value;S.shipD.dirty=true;return true}
+  return false}
 function shipChange(e){if(S.page!=="ship")return false;var t=e.target;
   if(t.id==="shSite"){S.shipF.site=t.value;render();return true}
   if(t.dataset.recv!==undefined){shipRefresh();return true}
+  if(t.dataset.sli&&/\|lk$/.test(t.dataset.sli)){var c2=t.dataset.sli.split("|");S.shipD.slips[+c2[0]].items[+c2[1]].lk=t.value;S.shipD.dirty=true;t.closest("tr").classList.toggle("nolk",!t.value);return true}
   if(t.id==="shFile"){shipUpload([].slice.call(t.files||[]));return true}
   return false}
 function shipUpload(files){var x=S.orders.filter(function(o){return o.id===S.shipSel})[0],d=S.shipD;files=(files||[]).filter(function(f){return /^image\//.test(f.type)});
     if(!x||!d){toast("請先從左邊選一張叫料單");return}if(!files.length){toast("請放照片檔（jpg、png）");return}var o=O(x);
     d.msg="上傳照片中，並讀取照片上的字（每張約 10～20 秒）…";shipRefresh();
-    files.reduce(function(p,f){return p.then(function(){return resizeImg(f)}).then(function(url){return api({action:"shipPhoto",id:x.id,no:o.no,site:o.site,mime:"image/jpeg",data:url.split(",")[1]}).then(function(j){if(!j.ok)throw new Error(j.error);S.img=S.img||{};S.img[j.fileId]=url;S.ships[x.id]=j.ship;if(j.text)d.text=(d.text?d.text+"\n":"")+j.text})})},Promise.resolve())
+    files.reduce(function(p,f){return p.then(function(){return resizeImg(f)}).then(function(url){return api({action:"shipPhoto",id:x.id,no:o.no,site:o.site,mime:"image/jpeg",data:url.split(",")[1]}).then(function(j){if(!j.ok)throw new Error(j.error);S.img=S.img||{};S.img[j.fileId]=url;S.ships[x.id]=j.ship;if(j.text){d.text=(d.text?d.text+"\n":"")+j.text;var sl=parseSlip(j.text);sl.fileId=j.fileId;matchSlip(x,sl);d.slips=(d.slips||[]).concat([sl]);d.dirty=true}})})},Promise.resolve())
     .then(function(){if(d.text)applyOcr(x,d,d.text);else d.msg="照片已上傳，但沒有讀到文字（可能太模糊或是手寫），請手動填數量。";shipRefresh()})
     .catch(function(err){d.msg="上傳失敗："+esc(err.message||err);shipRefresh()})}
 function shipDrop(e){if(S.page!=="ship")return;e.preventDefault();var z=e.target.closest&&e.target.closest("#shDrop");
