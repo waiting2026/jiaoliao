@@ -196,6 +196,8 @@ function shell(){
   var t="霧藍";try{t=localStorage.getItem("jl_desk_theme")||t}catch(e){}setTheme(t);
   $("page").addEventListener("click",onClick);$("page").addEventListener("input",onInput);$("page").addEventListener("change",onChange);
   $("dlgHost").addEventListener("click",onDlgClick);
+  $("dlgHost").addEventListener("change",function(e){if(e.target.id==="impFile"&&e.target.files&&e.target.files[0])impFileRead(e.target.files[0])});
+  ["dragover","dragleave","drop"].forEach(function(ev){$("dlgHost").addEventListener(ev,function(e){var z=e.target.closest&&e.target.closest("#impDrop");if(!z)return;e.preventDefault();if(ev==="dragover")z.classList.add("over");else z.classList.remove("over");if(ev==="drop"&&e.dataTransfer.files[0])impFileRead(e.dataTransfer.files[0])})});
   document.addEventListener("click",bellClick);
   document.addEventListener("click",priceDocClick);
   $("page").addEventListener("compositionend",priceCompEnd);
@@ -262,7 +264,7 @@ function pJL(){
   var sel=function(id,cur,opts,all){return '<select class="in" id="'+id+'" aria-label="'+all+'"><option value="">'+all+'</option>'+opts.map(function(v){return '<option '+(v===cur?"selected":"")+'>'+esc(v)+'</option>'}).join("")+'</select>'};
   return hero("叫料紀錄","全部叫料單",["共 "+S.orders.length+" 張","目前篩選 "+list.length+" 張","資料來源：試算表「訂單」「明細」"])+'<div class="content"><div class="panel">'+
   '<div class="f"><input class="in grow" id="fq" value="'+esc(f.q)+'" placeholder="搜尋單號、品名、收貨人、備註…" aria-label="搜尋叫料單">'+sel("fsite",f.site,sites,"全部工地")+sel("fwho",f.who,whos,"全部叫料人")+sel("fmonth",f.month,months,"全部月份")+
-  '<div class="r"><button type="button" class="btn" id="csv">⬇ 匯出 Excel（CSV）</button></div></div>'+orderTable(list)+'</div></div>';
+  '<div class="r"><button type="button" class="btn pri" id="impBtn">📥 匯入叫料單</button> <button type="button" class="btn" id="csv">⬇ 匯出 Excel（CSV）</button></div></div>'+orderTable(list)+'</div></div>';
 }
 function csv(){
   var rows=[["單號","工地","公司","訂貨日","交貨日","收貨人","電話","叫料人","分類","品名","尺寸","規格","單位","數量","備註"]];
@@ -781,14 +783,21 @@ function renderDlg(){
   var d=S.dlg,h=$("dlgHost");if(!h)return;if(!d){h.innerHTML="";return}
   var html="";
   if(d.t==="order"){var o=d.o,x=d.x;
-    html='<h2>叫料單 '+esc(o.no||"")+'</h2><div class="grid2">'+field("o-site","工地",o.site)+field("o-co","公司",o.company)+field("o-od","訂貨日",o.orderDate)+field("o-dd","交貨日",o.dueDate)+field("o-ct","收貨人",o.contact)+field("o-tel","電話",o.contactTel)+'<span></span>'+field("o-ct2","第二位收貨人",o.contact2||"")+field("o-tel2","第二位電話",o.contactTel2||"")+'</div>'+field("o-note","備註",o.note||"")+
+    html='<h2>'+(d.isNew?'📥 匯入的新叫料單 ':'叫料單 ')+esc(o.no||"")+'</h2>'+(d.isNew?'<p style="color:#b26a00;margin:-2px 0 6px;font-size:13px">還沒存檔：請確認工地、日期、收貨人和每一項材料，可以先按「對照小幫手品名」換成型錄品名，再按「儲存」。</p>':'')+'<div class="grid2">'+field("o-site","工地",o.site)+field("o-co","公司",o.company)+field("o-od","訂貨日",o.orderDate)+field("o-dd","交貨日",o.dueDate)+field("o-ct","收貨人",o.contact)+field("o-tel","電話",o.contactTel)+'<span></span>'+field("o-ct2","第二位收貨人",o.contact2||"")+field("o-tel2","第二位電話",o.contactTel2||"")+'</div>'+field("o-note","備註",o.note||"")+
     '<p style="color:var(--mu);margin:10px 0 4px">叫料人：'+esc(x.who)+'　品項 '+o.lines.length+' 項</p><div class="tw" style="max-height:320px"><table class="oled"><tr><th>品名／規格／尺寸</th><th>單位</th><th class="n">數量</th><th>備註</th><th>到貨狀況</th><th>交貨廠商</th><th></th></tr>'+o.lines.map(function(l,i){return '<tr><td><input class="in pn" data-ln="'+i+'" value="'+esc(pss(l))+'" list="oNames" aria-label="品名／規格／尺寸" placeholder="品名 規格 尺寸"><small>'+esc(l.cat||"")+'</small></td><td><input class="in" data-lu="'+i+'" value="'+esc(l.unit||"")+'" style="width:58px" aria-label="單位"></td><td class="n"><input class="in" data-lq="'+i+'" value="'+esc(l.qty)+'" inputmode="decimal" style="width:76px;text-align:right" aria-label="數量"></td><td><input class="in" data-lr="'+i+'" value="'+esc(l.remark||"")+'" style="width:110px" aria-label="備註"></td><td><input class="in" data-lat="'+i+'" value="'+esc(l.arrTime||"")+'" style="width:100px" aria-label="到貨狀況"></td><td><input class="in" data-lsv="'+i+'" value="'+esc(l.supplier||"")+'" style="width:110px" aria-label="交貨廠商"></td><td><button type="button" class="btn sm danger" data-ldel="'+i+'">刪</button></td></tr>'}).join("")+'</table></div>'+
     '<datalist id="oNames">'+S.orders.reduce(function(a,y){lines(y).forEach(function(l){if(l.name&&a.indexOf(l.name)<0)a.push(l.name)});return a},[]).slice(0,800).map(function(n){return '<option value="'+esc(n)+'">'}).join("")+'</datalist>'+
     '<div style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap"><button type="button" class="btn" data-ladd="1">＋ 新增材料</button><button type="button" class="btn" data-omatch="1">🔄 對照小幫手品名</button> <small style="color:var(--mu)">品名可以打字；MI 料單按「對照小幫手品名」會自動換成型錄上的品名和尺寸</small></div>'+
     (d.match?'<div class="note" style="margin-top:8px"><b>對照結果</b>：有 ✓ 的是系統很有把握的；黃色列是沒把握的，請自己選。選「保留原本」就不換。數量和單位不會改。<div class="tw" style="max-height:300px;margin-top:6px"><table><tr><th>原本（MI）</th><th>換成小幫手品名</th></tr>'+o.lines.map(function(l,i){var m=d.match[i]||{cands:[]},best=m.cands[0],sec=m.cands[1],ok=best&&best.score>=0.7&&(!sec||best.score-sec.score>=0.05),def=ok?0:-1;
       return '<tr'+(ok?'':' style="background:#fff6d6"')+'><td>'+esc((l.name||"")+" "+(l.size||""))+(l.spec?' <small>'+esc(l.spec)+'</small>':'')+'</td><td><select class="in" data-lm="'+i+'"><option value="-1">'+(ok?'（保留原本）':'？請選（不選就保留原本）')+'</option>'+m.cands.map(function(c,k){return '<option value="'+k+'" '+(k===def?"selected":"")+'>'+esc(c.name+"　"+c.size+(c.spec?"　"+c.spec:""))+'　〔'+esc(c.cat)+'〕'+(k===0&&ok?"　✓建議":"")+'</option>'}).join("")+'</select></td></tr>'}).join("")+
       '</table></div><div style="margin-top:8px;display:flex;gap:8px"><button type="button" class="btn pri" data-mapply="1">✔ 套用對照結果</button><button type="button" class="btn" data-mcancel="1">取消對照</button></div></div>':'')+
-    '<div class="actions"><button type="button" class="btn danger" data-odel="1" style="margin-right:auto">刪除這張單</button><button type="button" class="btn" data-oexp="xlsx">⬇ 匯出 Excel</button><button type="button" class="btn" data-oexp="pdf">📄 匯出 PDF</button><button type="button" class="btn" data-x="1">取消</button><button type="button" class="btn pri" data-osave="1">儲存修改</button></div><p style="font-size:12px;color:var(--mu);margin:6px 0 0">管理員修改後，叫料人的手機也會更新成新的內容。</p>'}
+    '<div class="actions">'+(d.isNew?'<span style="margin-right:auto"></span>':'<button type="button" class="btn danger" data-odel="1" style="margin-right:auto">刪除這張單</button>')+'<button type="button" class="btn" data-oexp="xlsx">⬇ 匯出 Excel</button><button type="button" class="btn" data-oexp="pdf">📄 匯出 PDF</button><button type="button" class="btn" data-x="1">取消</button><button type="button" class="btn pri" data-osave="1">儲存修改</button></div><p style="font-size:12px;color:var(--mu);margin:6px 0 0">管理員修改後，叫料人的手機也會更新成新的內容。</p>'}
+  if(d.t==="imp"){
+    html='<h2>📥 匯入叫料單</h2><p style="color:var(--mu);margin:0 0 10px">可以放 <b>Excel／CSV 檔</b>（叫料小幫手匯出的叫料單、MI 做的叫料單、自己做的表格都可以，只要有「品名」「數量」欄），或把 <b>LINE 訊息／Excel 表格直接貼上</b>。讀完會打開叫料單讓你確認、修改，按「儲存」才會建立。</p>'+
+    '<label class="drop" id="impDrop"><input type="file" id="impFile" accept=".xlsx,.xls,.csv" hidden><b>把 Excel 檔拖到這裡，或點這裡選檔案</b><small>.xlsx／.xls／.csv</small></label>'+
+    (d.sheets?'<div class="note" style="margin-top:10px"><b>'+esc(d.fname||"")+'</b> 裡面有 '+d.sheets.length+' 張，選一張打開：<div style="display:flex;flex-direction:column;gap:6px;margin-top:6px">'+d.sheets.map(function(sh,i){return '<button type="button" class="btn" data-impsh="'+i+'" style="justify-content:flex-start" '+(sh.o.lines.length?"":"disabled")+'>'+esc(sh.name)+'　—　'+esc(sh.o.site||"（沒寫工地）")+'　'+esc(sh.o.orderDate||"")+'　'+sh.o.lines.length+' 項</button>'}).join("")+'</div></div>':'')+
+    '<label style="margin-top:12px;display:block">或貼上文字<textarea class="in" id="impTxt" rows="7" placeholder="例如 MI 的訊息：&#10;📝 已做成叫料單（內湖緯創）&#10;1. 鍍鋅角鐵 6米無孔　50 支&#10;2. 外牙壁虎(套管式) 4分　300 只&#10;&#10;也可以從 Excel 選取表格（含「品名」「數量」標題列）複製貼上" style="width:100%;font-family:inherit">'+esc(d.txt||"")+'</textarea></label>'+
+    (d.err?'<div class="note" style="margin-top:8px;color:#c0392b">'+esc(d.err)+'</div>':'')+
+    '<div class="actions"><button type="button" class="btn" data-x="1">取消</button><button type="button" class="btn pri" data-imptxt="1">讀取貼上的文字</button></div>'}
   if(d.t==="site"){var s=d.s;
     html='<h2>'+(d.isNew?"＋ 新增工地":"✎ 修改工地")+'</h2>'+field("se-n","工地名稱",s.name)+'<label style="margin-top:8px">公司抬頭<select class="in" id="se-co">'+[""].concat(COMPANIES).concat(s.co&&COMPANIES.indexOf(s.co)<0?[s.co]:[]).map(function(c){return '<option value="'+esc(c)+'" '+(c===s.co?"selected":"")+'>'+(esc(c)||"（請選擇）")+'</option>'}).join("")+'</select></label><div style="margin-top:8px">'+field("se-ad","交貨地址",s.addr)+'</div>'+
     '<div style="margin-top:12px;font-weight:700">收貨人</div><div class="tw"><table><tr><th>姓名</th><th>電話</th><th></th></tr>'+s.ppl.map(function(p,i){return '<tr><td><input class="in" data-pn="'+i+'" value="'+esc(p[0])+'" aria-label="收貨人姓名"></td><td><input class="in" data-pt="'+i+'" value="'+esc(p[1])+'" aria-label="收貨人電話"></td><td><button type="button" class="btn sm danger" data-pdel="'+i+'">刪除</button></td></tr>'}).join("")+'</table></div><button type="button" class="btn" data-padd="1" style="margin-top:8px">＋ 新增收貨人</button>'+
@@ -815,6 +824,43 @@ function expReady(){
 }
 function expOrder(o,kind){return expReady().then(function(w){return w.jiaoliaoExportOrder(o,kind)})}
 function pss(l){return [(l.brand?l.brand+" ":"")+(l.name||""),l.spec||"",l.size==null?"":String(l.size)].map(function(x){return String(x).trim()}).filter(Boolean).join(" ")}
+// ---------- 匯入叫料單 ----------
+function impDate(v){if(v instanceof Date&&!isNaN(v))return fmtD(v);var t=String(v==null?"":v).trim();if(!t)return "";var m=t.match(/(\d{4})\s*[年\/\-.]\s*(\d{1,2})\s*[月\/\-.]\s*(\d{1,2})/);if(m)return m[1]+"-"+("0"+m[2]).slice(-2)+"-"+("0"+m[3]).slice(-2);
+  m=t.match(/^(\d{2,3})\s*[年\/\-.]\s*(\d{1,2})\s*[月\/\-.]\s*(\d{1,2})/);if(m)return (+m[1]+1911)+"-"+("0"+m[2]).slice(-2)+"-"+("0"+m[3]).slice(-2);
+  if(/^\d{5}(\.\d+)?$/.test(t)){var dd=new Date(Math.round((+t-25569)*864e5));return dd.getUTCFullYear()+"-"+("0"+(dd.getUTCMonth()+1)).slice(-2)+"-"+("0"+dd.getUTCDate()).slice(-2)}return ""}
+function impNew(){var n=new Date(),p=function(x){return ("0"+x).slice(-2)};return {id:"im"+n.getTime().toString(36)+Math.random().toString(36).slice(2,6),no:"IM"+n.getFullYear()+p(n.getMonth()+1)+p(n.getDate())+"-"+p(n.getHours())+p(n.getMinutes())+p(n.getSeconds()),site:"",company:"",orderDate:"",dueDate:"",contact:"",contactTel:"",contact2:"",contactTel2:"",note:"",exported:false,lines:[]}}
+function impLine(name,qty,unit,ex){var id="i"+Date.now().toString(36)+Math.random().toString(36).slice(2,7);ex=ex||{};return {id:id,vk:"c|"+id,ik:"custom",cat:"匯入",name:String(name||"").trim(),size:ex.size||"",spec:ex.spec||"",list:null,priceNote:"",unit:String(unit||"").trim()||"個",qty:qtyNum(qty),price:null,remark:ex.remark||"",arrTime:ex.arrTime||"",supplier:ex.supplier||""}}
+function impSiteGuess(t){t=String(t||"");var best="";S.sites.forEach(function(s){if(s.name&&t.indexOf(s.name)>=0&&s.name.length>best.length)best=s.name});return best}
+// 表格（每列一個陣列）→ 叫料單
+function impAoa(rows,fallbackSite){var o=impNew(),hr=-1,C={};
+  for(var r=0;r<rows.length&&hr<0;r++){var row=rows[r]||[];for(var c=0;c<row.length;c++){if(/品名|品項|材料名稱/.test(String(row[c]||"").replace(/\s/g,""))){hr=r;break}}}
+  var cell=function(v){return v instanceof Date?v:String(v==null?"":v).trim()};
+  var lab=function(t){t=String(t||"").replace(/[\s：:]/g,"");if(/^(工程名稱|工地|案場|工程)$/.test(t))return "site";if(/^(訂貨日期|訂貨日|叫料日期|日期)$/.test(t))return "orderDate";if(/交貨日/.test(t))return "dueDate";if(/收貨人電話|^電話$|聯絡電話/.test(t))return "contactTel";if(/^(收貨人|聯絡人)$/.test(t))return "contact";if(/^備註$/.test(t))return "note";return ""};
+  for(var r2=0;r2<(hr<0?rows.length:hr);r2++){var rw=rows[r2]||[];for(var c2=0;c2<rw.length;c2++){var k=lab(rw[c2]);if(!k||o[k])continue;for(var c3=c2+1;c3<rw.length;c3++){var v=cell(rw[c3]);if(v===""||v==null)continue;if(lab(v))break;o[k]=(k==="orderDate"||k==="dueDate")?impDate(v):String(v);break}}}
+  if(hr<0)return o;
+  (rows[hr]||[]).forEach(function(h,i){h=String(h||"").replace(/\s/g,"");if(!h)return;
+    if(/品名|品項|材料名稱/.test(h)){if(C.name==null)C.name=i}else if(/單價|複價|金額|小計|價/.test(h)){}else if(/尺寸|管徑/.test(h)){if(C.size==null)C.size=i}else if(/規格/.test(h)){if(C.spec==null)C.spec=i}else if(/單位/.test(h)){if(C.unit==null)C.unit=i}else if(/數量/.test(h)){if(C.qty==null)C.qty=i}else if(/到貨/.test(h)){if(C.arr==null)C.arr=i}else if(/廠商/.test(h)){if(C.sup==null)C.sup=i}else if(/備註|說明/.test(h)){if(C.rem==null)C.rem=i}});
+  var g=function(rw,k){return C[k]==null?"":String(rw[C[k]]==null?"":rw[C[k]]).trim()};
+  for(var r3=hr+1;r3<rows.length;r3++){var x=rows[r3]||[],nm=g(x,"name").replace(/\s*\n\s*/g," ");if(!nm||/^(合計|總計|小計|備註|以下空白)/.test(nm))continue;var q=qtyNum(g(x,"qty"));if(!(q>0))continue;
+    o.lines.push(impLine(nm,q,g(x,"unit"),{size:g(x,"size"),spec:g(x,"spec"),remark:g(x,"rem"),arrTime:g(x,"arr"),supplier:g(x,"sup")}))}
+  if(!o.site)o.site=fallbackSite||"";return o}
+// 文字（MI 訊息、Excel 複製的表格）→ 叫料單
+function impText(t){t=String(t||"");
+  if(/\t/.test(t)){var o1=impAoa(t.split(/\r?\n/).map(function(l){return l.split("\t")}));if(o1.lines.length){if(!o1.site)o1.site=impSiteGuess(t);return o1}}
+  var o=impNew(),m=t.match(/叫料單\s*[（(]\s*([^）)]+?)\s*[）)]/)||t.match(/(?:工地|工程名稱|案場)\s*[:：]\s*(\S+)/);o.site=m?m[1]:impSiteGuess(t);
+  var dm=t.match(/(?:交貨|到貨)(?:日期|日)?\s*[:：]?\s*(\d{4}[\/\-.年]\d{1,2}[\/\-.月]\d{1,2})/);if(dm)o.dueDate=impDate(dm[1]);
+  var cm=t.match(/收貨人\s*[:：]\s*([^\s,，0-9]+)\s*([0-9][0-9\-]{7,})?/);if(cm){o.contact=cm[1];o.contactTel=cm[2]||""}
+  t.split(/\r?\n/).forEach(function(line){var l=line.replace(/^\s*(\d+\s*[.、．)）]|[-•・*●▪])\s*/,"").trim();if(!l||/^(📝|📥|📁|https?:)/.test(l))return;
+    var mm=l.match(/^(.+?)\s*[×xX*]?\s*([0-9０-９]+(?:\.[0-9]+)?)\s*([^\d\s０-９.,，、]{1,3})\s*$/);if(!mm||!/\S/.test(mm[1]))return;if(/^(下載|共|合計)/.test(mm[1]))return;
+    o.lines.push(impLine(mm[1].replace(/[\s　]+$/,""),mm[2],mm[3]))});
+  return o}
+function impFill(o){var s=S.sites.filter(function(x){return x.name===o.site})[0];if(!s)return;if(!o.company&&s.co)o.company=s.co;var pp=(s.ppl||[]).filter(function(p){return p&&p[0]});if(!o.contact&&pp[0]){o.contact=pp[0][0];o.contactTel=o.contactTel||pp[0][1]||""}}
+function impOpen(o){impFill(o);if(!o.orderDate)o.orderDate=TODAY;if(!o.company)o.company=COMPANIES[0]||"";S.dlg={t:"order",isNew:true,x:{id:o.id,who:cfg().who},o:o};renderDlg()}
+function impFileRead(file){var d=S.dlg;if(!d||d.t!=="imp"||!file)return;if(!/\.(xlsx|xls|csv)$/i.test(file.name)){d.err="只能放 Excel 或 CSV 檔（照片、PDF 請改用貼上文字）";renderDlg();return}
+  d.err="";d.fname=file.name;pLoadXlsx().then(function(){return file.arrayBuffer()}).then(function(buf){var wb=XLSX.read(buf,{type:"array",cellDates:true});
+    var sh=wb.SheetNames.filter(function(n){return !/總表|彙總|統計/.test(n)}).map(function(n){var rows=XLSX.utils.sheet_to_json(wb.Sheets[n],{header:1,defval:"",raw:true});return {name:n,o:impAoa(rows,impSiteGuess(file.name))}}).filter(function(x){return x.o.lines.length});
+    if(!sh.length){d.err="這個檔案讀不到材料：要有「品名」和「數量」的標題列。";renderDlg();return}
+    if(sh.length===1){impOpen(sh[0].o);return}d.sheets=sh;renderDlg()}).catch(function(err){d.err="讀檔失敗："+(err.message||err);renderDlg()})}
 function busy(b){b.disabled=true;b.textContent="儲存中…"}
 function onDlgClick(e){
   var d=S.dlg,t;if(!d)return;var q=function(s){return e.target.closest(s)};
@@ -838,9 +884,16 @@ function onDlgClick(e){
       expOrder(o,kind).then(function(ok){if(ok)toast(kind==="pdf"?"PDF 已下載":"Excel 已下載")}).catch(function(err){alert("匯出失敗："+(err.message||err))}).then(function(){t.disabled=false;t.textContent=lab});return}
     if(t=q("[data-osave]")){readO();var bad=o.lines.filter(function(l){return l.qty>0&&!String(l.name||"").trim()});if(bad.length){alert("有 "+bad.length+" 項材料還沒填品名");return}
       var zero=o.lines.filter(function(l){return !(l.qty>0)&&String(l.name||"").trim()});if(zero.length&&!confirm("這幾項數量是 0 或沒填，存檔後會被刪掉：\n"+zero.map(function(l){return "・"+l.name+" "+(l.size||"")}).join("\n")+"\n\n確定要刪掉嗎？（按「取消」回去補數量）"))return;
-      o.lines=o.lines.filter(function(l){return l.qty>0});busy(t);api({action:"adminSaveOrder",order:o,owner:d.x.who}).then(function(j){if(!j.ok)throw new Error(j.error);o.adminRev=j.rev;d.x.order=o;d.x.rev=j.rev;S.dlg=null;toast("已儲存");render()}).catch(function(err){alert("儲存失敗："+(err.message||err));renderDlg()});return}
+      o.lines=o.lines.filter(function(l){return l.qty>0});
+      if(d.isNew){if(!o.site){alert("請填工地");return}if(!o.lines.length){alert("沒有材料可以存");return}impFill(o);o.saved=Date.now();busy(t);
+        api({orders:[o]}).then(function(j){if(!j.ok)throw new Error(j.error);S.orders.unshift({id:o.id,who:cfg().who,order:o,rev:0});S.dlg=null;toast("已建立叫料單 "+o.no);render()}).catch(function(err){alert("儲存失敗："+(err.message||err));renderDlg()});return}
+      busy(t);api({action:"adminSaveOrder",order:o,owner:d.x.who}).then(function(j){if(!j.ok)throw new Error(j.error);o.adminRev=j.rev;d.x.order=o;d.x.rev=j.rev;S.dlg=null;toast("已儲存");render()}).catch(function(err){alert("儲存失敗："+(err.message||err));renderDlg()});return}
     if(t=q("[data-odel]")){if(!confirm("確定刪除叫料單 "+(o.no||"")+"？\n（會移到試算表「已刪除」分頁）"))return;busy(t);api({action:"adminDeleteOrder",id:d.x.id,owner:d.x.who}).then(function(j){if(!j.ok)throw new Error(j.error);S.orders=S.orders.filter(function(x){return x.id!==d.x.id});S.dlg=null;toast("已刪除");render()}).catch(function(err){alert("刪除失敗："+(err.message||err));renderDlg()});return}
   }
+  if(d.t==="imp"){
+    if(q("[data-imptxt]")){d.txt=$("impTxt").value;var r=impText(d.txt);if(!r.lines.length){d.err="讀不到材料。每一行要有「品名＋數量＋單位」，例如「1. 牙條 3分 20 支」，或貼上含「品名」「數量」標題列的表格。";renderDlg();return}impOpen(r);return}
+    if(t=q("[data-impsh]")){impOpen(d.sheets[+t.dataset.impsh].o);return}
+    return}
   if(d.t==="site"){
     var s=d.s;
     if(q("[data-padd]")){syncSite();s.ppl.push(["",""]);renderDlg();return}
@@ -873,6 +926,7 @@ function onClick(e){
   if(t=q("[data-open]")){var x=S.orders.filter(function(o){return o.id===t.dataset.open})[0];if(x)orderDlg(x);return}
   if(t=q("[data-gosite]")){S.filt={site:t.dataset.gosite,who:"",month:MONTH,q:""};S.page="jl";render();return}
   if(q("#csv")){csv();return}
+  if(q("#impBtn")){S.dlg={t:"imp",txt:"",sheets:null,err:""};renderDlg();return}
   if(t=q("[data-stab]")){S.siteTab=t.dataset.stab;render();return}
   if(t=q("[data-sedit]")){var s=S.sites.filter(function(x){return x.id===t.dataset.sedit})[0];S.dlg={t:"site",orig:s,s:JSON.parse(JSON.stringify(s))};renderDlg();return}
   if(q("[data-snew]")){S.dlg={t:"site",isNew:1,orig:null,s:{id:"",name:"",co:"",addr:"",ppl:[["",""]],gone:[]}};renderDlg();return}
