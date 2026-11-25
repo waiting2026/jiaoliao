@@ -784,7 +784,10 @@ function renderDlg(){
     html='<h2>叫料單 '+esc(o.no||"")+'</h2><div class="grid2">'+field("o-site","工地",o.site)+field("o-co","公司",o.company)+field("o-od","訂貨日",o.orderDate)+field("o-dd","交貨日",o.dueDate)+field("o-ct","收貨人",o.contact)+field("o-tel","電話",o.contactTel)+'<span></span>'+field("o-ct2","第二位收貨人",o.contact2||"")+field("o-tel2","第二位電話",o.contactTel2||"")+'</div>'+field("o-note","備註",o.note||"")+
     '<p style="color:var(--mu);margin:10px 0 4px">叫料人：'+esc(x.who)+'　品項 '+o.lines.length+' 項</p><div class="tw" style="max-height:320px"><table class="oled"><tr><th>品名</th><th>尺寸</th><th>規格</th><th class="n">數量</th><th>單位</th><th>備註</th><th>到貨狀況</th><th>交貨廠商</th><th></th></tr>'+o.lines.map(function(l,i){return '<tr><td><input class="in" data-ln="'+i+'" value="'+esc((l.brand?l.brand+" ":"")+l.name)+'" list="oNames" aria-label="品名"><small>'+esc(l.cat||"")+'</small></td><td><input class="in" data-ls="'+i+'" value="'+esc(l.size)+'" style="width:110px" aria-label="尺寸"></td><td><input class="in" data-lsp="'+i+'" value="'+esc(l.spec||"")+'" style="width:120px" aria-label="規格"></td><td class="n"><input class="in" data-lq="'+i+'" value="'+esc(l.qty)+'" inputmode="decimal" style="width:76px;text-align:right" aria-label="數量"></td><td><input class="in" data-lu="'+i+'" value="'+esc(l.unit||"")+'" style="width:58px" aria-label="單位"></td><td><input class="in" data-lr="'+i+'" value="'+esc(l.remark||"")+'" style="width:110px" aria-label="備註"></td><td><input class="in" data-lat="'+i+'" value="'+esc(l.arrTime||"")+'" style="width:100px" aria-label="到貨狀況"></td><td><input class="in" data-lsv="'+i+'" value="'+esc(l.supplier||"")+'" style="width:110px" aria-label="交貨廠商"></td><td><button type="button" class="btn sm danger" data-ldel="'+i+'">刪</button></td></tr>'}).join("")+'</table></div>'+
     '<datalist id="oNames">'+S.orders.reduce(function(a,y){lines(y).forEach(function(l){if(l.name&&a.indexOf(l.name)<0)a.push(l.name)});return a},[]).slice(0,800).map(function(n){return '<option value="'+esc(n)+'">'}).join("")+'</datalist>'+
-    '<div style="margin-top:8px"><button type="button" class="btn" data-ladd="1">＋ 新增材料</button> <small style="color:var(--mu)">品名可以打字，也會跳出其他叫料單用過的名稱</small></div>'+
+    '<div style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap"><button type="button" class="btn" data-ladd="1">＋ 新增材料</button><button type="button" class="btn" data-omatch="1">🔄 對照小幫手品名</button> <small style="color:var(--mu)">品名可以打字；MI 料單按「對照小幫手品名」會自動換成型錄上的品名和尺寸</small></div>'+
+    (d.match?'<div class="note" style="margin-top:8px"><b>對照結果</b>：有 ✓ 的是系統很有把握的；黃色列是沒把握的，請自己選。選「保留原本」就不換。數量和單位不會改。<div class="tw" style="max-height:300px;margin-top:6px"><table><tr><th>原本（MI）</th><th>換成小幫手品名</th></tr>'+o.lines.map(function(l,i){var m=d.match[i]||{cands:[]},best=m.cands[0],sec=m.cands[1],ok=best&&best.score>=0.7&&(!sec||best.score-sec.score>=0.05),def=ok?0:-1;
+      return '<tr'+(ok?'':' style="background:#fff6d6"')+'><td>'+esc((l.name||"")+" "+(l.size||""))+(l.spec?' <small>'+esc(l.spec)+'</small>':'')+'</td><td><select class="in" data-lm="'+i+'"><option value="-1">'+(ok?'（保留原本）':'？請選（不選就保留原本）')+'</option>'+m.cands.map(function(c,k){return '<option value="'+k+'" '+(k===def?"selected":"")+'>'+esc(c.name+"　"+c.size+(c.spec?"　"+c.spec:""))+'　〔'+esc(c.cat)+'〕'+(k===0&&ok?"　✓建議":"")+'</option>'}).join("")+'</select></td></tr>'}).join("")+
+      '</table></div><div style="margin-top:8px;display:flex;gap:8px"><button type="button" class="btn pri" data-mapply="1">✔ 套用對照結果</button><button type="button" class="btn" data-mcancel="1">取消對照</button></div></div>':'')+
     '<div class="actions"><button type="button" class="btn danger" data-odel="1" style="margin-right:auto">刪除這張單</button><button type="button" class="btn" data-oexp="xlsx">⬇ 匯出 Excel</button><button type="button" class="btn" data-oexp="pdf">📄 匯出 PDF</button><button type="button" class="btn" data-x="1">取消</button><button type="button" class="btn pri" data-osave="1">儲存修改</button></div><p style="font-size:12px;color:var(--mu);margin:6px 0 0">管理員修改後，叫料人的手機也會更新成新的內容。</p>'}
   if(d.t==="site"){var s=d.s;
     html='<h2>'+(d.isNew?"＋ 新增工地":"✎ 修改工地")+'</h2>'+field("se-n","工地名稱",s.name)+'<label style="margin-top:8px">公司抬頭<select class="in" id="se-co">'+[""].concat(COMPANIES).concat(s.co&&COMPANIES.indexOf(s.co)<0?[s.co]:[]).map(function(c){return '<option value="'+esc(c)+'" '+(c===s.co?"selected":"")+'>'+(esc(c)||"（請選擇）")+'</option>'}).join("")+'</select></label><div style="margin-top:8px">'+field("se-ad","交貨地址",s.addr)+'</div>'+
@@ -804,12 +807,13 @@ function renderDlg(){
 function syncSite(){var s=S.dlg.s;s.name=$("se-n").value.trim();s.co=$("se-co").value;s.addr=$("se-ad").value.trim();document.querySelectorAll("[data-pn]").forEach(function(el){s.ppl[+el.dataset.pn][0]=el.value.trim()});document.querySelectorAll("[data-pt]").forEach(function(el){s.ppl[+el.dataset.pt][1]=el.value.trim()})}
 // 匯出用：在畫面外開一個隱藏的叫料小幫手，借用它的 Excel／PDF 產生功能（格式和手機版一樣）
 var expFrame=null;
-function expOrder(o,kind){
+function expReady(){
   if(!expFrame){expFrame=new Promise(function(ok,no){var f=document.createElement("iframe");f.src="index.html?exp=1";f.setAttribute("aria-hidden","true");f.tabIndex=-1;
     f.style.cssText="position:fixed;left:-12000px;top:0;width:1000px;height:800px;border:0;opacity:0;pointer-events:none";document.body.appendChild(f);
     var n=0,iv=setInterval(function(){var w=f.contentWindow;if(w&&w.jiaoliaoExportOrder){clearInterval(iv);ok(w)}else if(++n>100){clearInterval(iv);expFrame=null;f.remove();no(new Error("匯出元件載入逾時，請再按一次"))}},200)})}
-  return expFrame.then(function(w){return w.jiaoliaoExportOrder(o,kind)});
+  return expFrame;
 }
+function expOrder(o,kind){return expReady().then(function(w){return w.jiaoliaoExportOrder(o,kind)})}
 function busy(b){b.disabled=true;b.textContent="儲存中…"}
 function onDlgClick(e){
   var d=S.dlg,t;if(!d)return;var q=function(s){return e.target.closest(s)};
@@ -822,6 +826,13 @@ function onDlgClick(e){
         if(ch){l.name=nm;delete l.brand;l.size=sz;l.spec=sp;if(l.ik!=="custom"){l.ik="custom";l.vk="c|"+(l.id||Date.now()+i)}l.remark=l.remark||"管理員修改"}l.unit=un;var rm=g("lr"),at=g("lat"),sv=g("lsv");if(rm!=null)l.remark=rm;if(at!=null)l.arrTime=at;if(sv!=null)l.supplier=sv})};
     if(t=q("[data-ldel]")){readO();o.lines.splice(+t.dataset.ldel,1);renderDlg();return}
     if(t=q("[data-ladd]")){readO();var nid="a"+Date.now().toString(36);o.lines.push({id:nid,vk:"c|"+nid,ik:"custom",cat:"自訂",name:"",size:"",spec:"",list:null,priceNote:"",unit:"個",qty:"",price:null,remark:"管理員新增"});renderDlg();var ins=document.querySelectorAll("[data-ln]");if(ins.length)ins[ins.length-1].focus();return}
+    if(t=q("[data-omatch]")){readO();if(!o.lines.length){alert("這張單沒有材料");return}t.disabled=true;t.textContent="對照中…";
+      expReady().then(function(w){d.match=w.jiaoliaoMatchLines(o.lines);renderDlg()}).catch(function(err){alert("對照失敗："+(err.message||err));t.disabled=false;t.textContent="🔄 對照小幫手品名"});return}
+    if(q("[data-mcancel]")){readO();d.match=null;renderDlg();return}
+    if(q("[data-mapply]")){readO();var nch=0;document.querySelectorAll("[data-lm]").forEach(function(el){var i=+el.dataset.lm,k=+el.value,m=d.match[i],c=m&&m.cands[k],l=o.lines[i];if(!c||!l)return;
+        var note=m.pack;
+        l.name=c.name;delete l.brand;l.size=c.size;l.spec=c.spec;l.cat=c.cat;l.ik=c.ik;l.vk=c.vk;if(!l.unit)l.unit=c.unit;if(note&&String(l.remark||"").indexOf(note)<0)l.remark=l.remark?l.remark+"；"+note:note;nch++});
+      d.match=null;renderDlg();toast("已換 "+nch+" 項品名，確認後按「儲存修改」");return}
     if(t=q("[data-oexp]")){readO();var kind=t.dataset.oexp,lab=t.textContent;t.disabled=true;t.textContent="產生中…";
       expOrder(o,kind).then(function(ok){if(ok)toast(kind==="pdf"?"PDF 已下載":"Excel 已下載")}).catch(function(err){alert("匯出失敗："+(err.message||err))}).then(function(){t.disabled=false;t.textContent=lab});return}
     if(t=q("[data-osave]")){readO();var bad=o.lines.filter(function(l){return l.qty>0&&!String(l.name||"").trim()});if(bad.length){alert("有 "+bad.length+" 項材料還沒填品名");return}

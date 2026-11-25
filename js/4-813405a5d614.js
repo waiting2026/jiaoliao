@@ -1157,6 +1157,32 @@ async function downloadPdf(share){
 }
 const exportPdf=previewPdf;
 window.__exportTest=exportXlsx;
+// ---------- 外來料單（MI 等）對照型錄品名 ----------
+const MATCH=(()=>{
+  const FR={"½":".5","¼":".25","¾":".75","⅛":".125","⅜":".375","⅝":".625","⅞":".875"};
+  const PACK=/[（(][^）)]*?(\d+\s*(只|個|支|組|入|pcs|PCS)\s*\/\s*(箱|包|盒|袋|捆|綑)|每箱|一箱)[^）)]*[）)]/;
+  const norm=s=>{s=String(s||"").replace(/(\d)\s*([½¼¾⅛⅜⅝⅞])/g,(m,a,b)=>a+FR[b]).replace(/[½¼¾⅛⅜⅝⅞]/g,m=>"0"+FR[m]);
+    s=s.normalize("NFKC").toLowerCase().replace(/[º˚]/g,"°").replace(/[″”“＂'']/g,'"').replace(/[×*]/g,"x").replace(/㎜/g,"mm").replace(/⁄/g,"/");s=s.replace(/(\d+(?:\.\d+)?)\s*分(?![鐘])/g,(m,n)=>String(+(n/8).toFixed(3))+"\"").replace(/(\d+(?:\.\d+)?)\s*(英吋|吋|inch)/g,"$1\"").replace(/(\d+(?:\.\d+)?)\s*(米|公尺)/g,"$1m");
+    s=s.replace(/(\d+)[-\s]+(\d+)\/(\d+)/g,(m,a,b,c)=>String(+a+b/c)).replace(/(^|[^\d.])(\d+)\/(\d+)/g,(m,p,b,c)=>p+String(+(b/c).toFixed(3)));
+    return s.replace(/[\s()（）\[\]【】・,，、:：;；]/g,"")};
+  const big=s=>{const m=new Map();for(let i=0;i<s.length-1;i++){const g=s.slice(i,i+2);m.set(g,(m.get(g)||0)+1)}if(s.length===1)m.set(s,1);return m};
+  const dice=(a,b)=>{if(!a||!b)return 0;if(a===b)return 1;const A=big(a),B=big(b);let n=0,ta=0,tb=0;A.forEach(v=>ta+=v);B.forEach(v=>tb+=v);A.forEach((v,k)=>{n+=Math.min(v,B.get(k)||0)});return 2*n/(ta+tb||1)};
+  const nums=s=>(s.match(/\d+(\.\d+)?/g)||[]);
+  let IDX=null;
+  const build=()=>{IDX=[];menuCatalog.forEach(c=>c.items.forEach(x=>{IDX.push({x,cat:x.cat||c.n,nn:norm(x.it.n),cn:norm(x.cat||c.n),vs:x.it.v.map((v,vi)=>({v,vi,sn:norm(v[0]),pn:norm((v[0]||"")+(v[1]||""))}))})}))};
+  return lines=>{if(!IDX)build();
+    return (lines||[]).map(l=>{
+      const raw=String(l.name||"").replace(/^\s+|\s+$/g,""),pk=(raw.match(PACK)||[""])[0];
+      const ln=norm(raw.replace(PACK,"")),ls=norm(l.size),lp=norm((l.size||"")+(l.spec||"")),lc=norm(l.cat),lnum=nums(ls);
+      const items=IDX.map(e=>{let s=dice(ln,e.nn);if(ln&&e.nn&&(ln.includes(e.nn)||e.nn.includes(ln)))s=Math.max(s,.75+.25*Math.min(ln.length,e.nn.length)/Math.max(ln.length,e.nn.length));if(lc)s+=.15*dice(lc,e.cn);return {e,s}}).sort((a,b)=>b.s-a.s).slice(0,12);
+      const cands=[];
+      items.forEach(({e,s})=>e.vs.forEach(o=>{let z=ls?Math.max(dice(ls,o.sn),dice(lp,o.pn)):.5;
+        if(lnum.length){const vn=nums(o.pn);const hit=lnum.filter(n=>vn.includes(n)).length;z+=.3*hit/lnum.length-(hit?0:.2)}
+        cands.push({score:+(s*.6+z*.4).toFixed(3),cat:e.cat,name:e.x.it.n,size:o.v[0]||"",spec:o.v[1]||"",unit:unitFor(o.v[3]),ik:e.x.key,vk:vKey(e.x.key,o.vi)})}));
+      cands.sort((a,b)=>b.score-a.score);
+      return {pack:pk.replace(/^[（(]|[）)]$/g,""),cands:cands.slice(0,6)}})};
+})();
+window.jiaoliaoMatchLines=lines=>MATCH(lines);
 window.jiaoliaoExportOrder=async(o,kind)=>{const d=JSON.parse(JSON.stringify(o||{}));d.project=d.project||d.site||"";if(!Array.isArray(d.docs))d.docs=[];["orderDate","dueDate"].forEach(k=>{const m=String(d[k]||"").match(/(\d{4})\D(\d{1,2})\D(\d{1,2})/);d[k]=m?m[1]+"-"+m[2].padStart(2,"0")+"-"+m[3].padStart(2,"0"):""});d.lines=(d.lines||[]).filter(l=>+l.qty>0);
   if(!d.lines.length)throw new Error("這張單沒有材料（數量要大於 0）");
   if(kind==="pdf"){const f=await buildPdf(d);return saveFile(f.name,f)}
